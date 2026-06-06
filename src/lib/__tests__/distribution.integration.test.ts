@@ -23,7 +23,7 @@ describe("distribution supabase flows", () => {
     expect(id).toBe("db-id");
   });
 
-  it("completeDistribution rejects wrong PIN", async () => {
+  it("completeDistribution rejects wrong PIN via verify_distribution_pin RPC", async () => {
     supabase.from.mockImplementation((table: string) => {
       if (table === "aid_requests") {
         return buildMockQuery({
@@ -41,6 +41,10 @@ describe("distribution supabase flows", () => {
       }
       return buildMockQuery({ data: null, error: null });
     });
+    supabase.rpc.mockResolvedValue({
+      data: { ok: false, code: "bad_pin", message: "رمز PIN غير صحيح." },
+      error: null,
+    });
 
     const result = await completeDistribution({
       requestId: "req-1",
@@ -52,6 +56,52 @@ describe("distribution supabase flows", () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe("bad_pin");
+    expect(supabase.rpc).toHaveBeenCalledWith("verify_distribution_pin", {
+      _request_id: "req-1",
+      _pin: "0000",
+    });
+  });
+
+  it("completeDistribution surfaces PIN lockout from RPC", async () => {
+    supabase.from.mockImplementation((table: string) => {
+      if (table === "aid_requests") {
+        return buildMockQuery({
+          data: {
+            id: "req-1",
+            reference_code: "SND-1",
+            full_name: "Test",
+            family_size: 4,
+            needs: [],
+            status: "approved",
+            qr_pin: "1234",
+          },
+          error: null,
+        });
+      }
+      return buildMockQuery({ data: null, error: null });
+    });
+    supabase.rpc.mockResolvedValue({
+      data: {
+        ok: false,
+        code: "locked",
+        message: "تم تعليق المحاولات — حاول بعد ١٥ دقيقة.",
+      },
+      error: null,
+    });
+
+    const result = await completeDistribution({
+      requestId: "req-1",
+      pin: "0000",
+      eventId: null,
+      eventLocation: "صور",
+      scannedBy: "admin-1",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      code: "locked",
+      message: "تم تعليق المحاولات — حاول بعد ١٥ دقيقة.",
+    });
   });
 
   it("completeDistribution succeeds with valid PIN", async () => {
@@ -76,6 +126,10 @@ describe("distribution supabase flows", () => {
         return buildMockQuery({ data: null, error: null });
       }
       return buildMockQuery({ data: null, error: null });
+    });
+    supabase.rpc.mockResolvedValue({
+      data: { ok: true, code: "valid" },
+      error: null,
     });
 
     const result = await completeDistribution({

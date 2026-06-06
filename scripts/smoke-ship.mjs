@@ -81,7 +81,17 @@ let failed = 0;
 console.log("SANAD v2 ship smoke —", url.replace("https://", ""));
 
 for (const name of staffRpcs) {
-  const { status, data } = await rpc(name, name === "queue_position" ? { _request_id: "00000000-0000-0000-0000-000000000001" } : {});
+  let body = {};
+  if (name === "queue_position") {
+    body = { _request_id: "00000000-0000-0000-0000-000000000001" };
+  } else if (
+    name === "get_export_job" ||
+    name === "advance_export_job" ||
+    name === "fetch_export_job_csv"
+  ) {
+    body = { _job_id: "00000000-0000-0000-0000-000000000001" };
+  }
+  const { status, data } = await rpc(name, body);
   if (isMissingFunction(data)) {
     console.log(`✗ ${name} — RPC NOT FOUND (apply migration)`);
     failed++;

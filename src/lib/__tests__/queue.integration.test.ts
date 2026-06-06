@@ -49,6 +49,11 @@ describe("queue supabase flows", () => {
     supabase.rpc.mockResolvedValue({ data: null, error: { message: "not found" } });
     await expect(fetchQueuePosition("req-err")).rejects.toEqual({ message: "not found" });
   });
+
+  it("fetchQueuePosition propagates staff-only auth errors from RPC", async () => {
+    supabase.rpc.mockResolvedValue({ data: null, error: { message: "not authorized" } });
+    await expect(fetchQueuePosition("req-denied")).rejects.toEqual({ message: "not authorized" });
+  });
 });
 
 describe("queue helpers", () => {

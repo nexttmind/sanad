@@ -2,25 +2,12 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { PublicNav } from "@/components/PublicNav";
 import { PublicFooter } from "@/components/PublicFooter";
-import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
-import { fetchTrackHistory, type TrackHistoryEntry } from "@/lib/track-request";
+import { lookupTrackRequest, type TrackHistoryEntry, type TrackLookupRow, type TrackQueuePosition } from "@/lib/track-request";
+import { formatQueueNumber, formatQueuePosition } from "@/lib/queue";
 
 type DbStatus = Database["public"]["Enums"]["request_status"];
-type TrackResult = {
-  reference_code: string;
-  full_name: string;
-  phone_masked: string;
-  governorate: string | null;
-  district: string | null;
-  town: string | null;
-  family_size: number;
-  status: DbStatus;
-  distribution_date: string | null;
-  distribution_location: string | null;
-  created_at: string;
-  updated_at: string;
-};
+type TrackResult = TrackLookupRow;
 
 // Local UI types (kept so the rest of the file renders unchanged)
 type Status = DbStatus;
@@ -36,6 +23,7 @@ type Submission = {
   status: Status;
   submittedAt: string;
   history: TrackHistoryEntry[];
+  queue: TrackQueuePosition | null;
 };
 
 export const Route = createFileRoute("/track")({
@@ -153,7 +141,7 @@ function normalizePhone(p: string) {
 function TrackPage() {
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
-  const [result, setResult] = useState<Submission | "not-found" | null>(null);
+  const [result, setResult] = useState<Submission | "not-found" | "rate-limited" | null>(null);
   const [searched, setSearched] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -165,18 +153,16 @@ function TrackPage() {
       const trimmedCode = code.trim();
       const trimmedPhone = phone.trim();
 
-      const [trackRes, history] = await Promise.all([
-        supabase.rpc("track_request", { _code: trimmedCode, _phone: trimmedPhone }),
-        fetchTrackHistory(trimmedCode, trimmedPhone),
-      ]);
+      const lookup = await lookupTrackRequest(trimmedCode, trimmedPhone);
 
-      const row =
-        !trackRes.error && trackRes.data && trackRes.data.length > 0
-          ? (trackRes.data[0] as TrackResult)
-          : null;
+      if (!lookup.ok) {
+        setResult(lookup.rateLimited ? "rate-limited" : "not-found");
+        return;
+      }
+
+      const row = lookup.track;
 
       if (row) {
-
         const sub: Submission = {
           code: row.reference_code,
           name: row.full_name,
@@ -188,7 +174,8 @@ function TrackPage() {
           needs: [],
           status: row.status,
           submittedAt: row.created_at,
-          history,
+          history: lookup.history,
+          queue: lookup.queue,
         };
         setResult(sub);
         setTimeout(() => document.getElementById("result")?.scrollIntoView({ behavior: "smooth" }), 50);
@@ -252,7 +239,10 @@ function TrackPage() {
       {/* RESULT */}
       <section id="result" className="mx-auto max-w-3xl px-5 py-12 sm:px-6 sm:py-16 lg:px-10">
         {searched && result === "not-found" && <NotFound onReset={reset} />}
-        {result && result !== "not-found" && <FoundResult sub={result} onReset={reset} />}
+        {searched && result === "rate-limited" && <RateLimited onReset={reset} />}
+        {result && result !== "not-found" && result !== "rate-limited" && (
+          <FoundResult sub={result} onReset={reset} />
+        )}
       </section>
 
       <PublicFooter />
@@ -284,6 +274,22 @@ function NotFound({ onReset }: { onReset: () => void }) {
         <a href="tel:+96170000000" className="rounded-full bg-primary px-5 py-2.5 text-sm text-primary-foreground hover:bg-primary/90">
           الاتصال بالفريق
         </a>
+      </div>
+    </div>
+  );
+}
+
+function RateLimited({ onReset }: { onReset: () => void }) {
+  return (
+    <div className="rise rounded-2xl border border-warning/30 bg-warning/5 p-6 sm:p-8">
+      <h2 className="font-display text-2xl text-foreground sm:text-3xl">تجاوزت الحد المسموح</h2>
+      <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground sm:text-sm">
+        عدد محاولات التتبّع كبير من هذا الاتصال. يرجى الانتظار ساعة ثم المحاولة مجدداً.
+      </p>
+      <div className="mt-6">
+        <button onClick={onReset} className="rounded-full border border-border bg-background px-5 py-2.5 text-sm hover:border-foreground/40">
+          إعادة المحاولة
+        </button>
       </div>
     </div>
   );
@@ -322,6 +328,18 @@ function FoundResult({ sub, onReset }: { sub: Submission; onReset: () => void })
           </div>
         </div>
       </div>
+
+      {sub.queue && (
+        <div className="rounded-2xl border border-clay/30 bg-clay/5 p-5 sm:p-6">
+          <div className="font-mono text-[10px] uppercase tracking-[0.32em] text-clay">دورك في القائمة</div>
+          <div className="mt-2 font-display text-2xl text-foreground sm:text-3xl">
+            {formatQueuePosition(sub.queue.position_among_pending, sub.queue.pending_total)}
+          </div>
+          <div className="mt-1.5 text-[12px] text-muted-foreground sm:text-[13px]">
+            رقم الدور: {formatQueueNumber(sub.queue.queue_number)}
+          </div>
+        </div>
+      )}
 
       {/* TIMELINE */}
       <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">

@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -111,6 +112,42 @@ export async function fetchRecentDonationMessages(limit = 6): Promise<PledgeMess
   return (data as PledgeMessage[] | null) ?? [];
 }
 
+/** Client-side cache for public read RPCs (Step 8.1 — 60s stale, 5m gc). */
+export const publicReadQueryOptions = {
+  staleTime: 60_000,
+  gcTime: 300_000,
+} as const;
+
+export const donationQueryKeys = {
+  impactStats: ["donation-impact-stats"] as const,
+  publicLedger: (limit: number) => ["public-ledger", limit] as const,
+  adoptableFamilies: (limit: number) => ["adoptable-families", limit] as const,
+};
+
+export function useDonationImpactStats() {
+  return useQuery({
+    queryKey: donationQueryKeys.impactStats,
+    queryFn: fetchDonationImpactStats,
+    ...publicReadQueryOptions,
+  });
+}
+
+export function usePublicLedger(limit = 10) {
+  return useQuery({
+    queryKey: donationQueryKeys.publicLedger(limit),
+    queryFn: () => fetchPublicLedger(limit),
+    ...publicReadQueryOptions,
+  });
+}
+
+export function useAdoptableFamilies(limit = 10) {
+  return useQuery({
+    queryKey: donationQueryKeys.adoptableFamilies(limit),
+    queryFn: () => fetchAdoptableFamilies(limit),
+    ...publicReadQueryOptions,
+  });
+}
+
 export type DonationProofPhotoRow = {
   id: string;
   asset_key: string;
@@ -129,6 +166,7 @@ export async function fetchDonationProofPhotos(): Promise<DonationProofPhotoRow[
 
 export type SubmitDonationInput = {
   donor_name: string;
+  donor_phone?: string | null;
   amount: number;
   currency?: string;
   method: DonationMethod;
@@ -138,47 +176,85 @@ export type SubmitDonationInput = {
   proofFile?: File | null;
 };
 
+export class DonationSubmitError extends Error {
+  readonly rateLimited: boolean;
+
+  constructor(message: string, rateLimited = false) {
+    super(message);
+    this.name = "DonationSubmitError";
+    this.rateLimited = rateLimited;
+  }
+}
+
+const MAX_PROOF_BYTES = 4 * 1024 * 1024;
+
+async function fileToBase64(file: File): Promise<string> {
+  if (file.size > MAX_PROOF_BYTES) {
+    throw new DonationSubmitError("حجم ملف إثبات الدفع كبير جداً.");
+  }
+  const buffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]!);
+  }
+  return btoa(binary);
+}
+
+/** Rate-limited donation pledge via edge function (Step 2.3). */
 export async function submitDonation(
   input: SubmitDonationInput,
 ): Promise<{ reference_code: string; id: string }> {
-  if (!input.donor_name.trim() || input.amount <= 0) {
-    throw new Error("invalid donation");
+  if (!input.donor_name.trim() && !input.is_anonymous) {
+    throw new DonationSubmitError("invalid donation");
+  }
+  if (input.amount <= 0) {
+    throw new DonationSubmitError("invalid donation");
   }
 
-  const { data, error } = await supabase
-    .from("donations")
-    .insert({
-      donor_name: input.is_anonymous ? null : input.donor_name.trim(),
+  let proof_base64: string | undefined;
+  let proof_filename: string | undefined;
+  let proof_content_type: string | undefined;
+
+  if (input.proofFile) {
+    proof_base64 = await fileToBase64(input.proofFile);
+    proof_filename = input.proofFile.name;
+    proof_content_type = input.proofFile.type || "application/octet-stream";
+  }
+
+  const { data, error } = await supabase.functions.invoke<{
+    ok?: boolean;
+    message?: string;
+    id?: string;
+    reference_code?: string;
+    retry_after_seconds?: number;
+  }>("submit-donation", {
+    body: {
+      donor_name: input.donor_name.trim(),
+      donor_phone: input.donor_phone?.trim() || null,
       amount: input.amount,
       currency: input.currency ?? "USD",
       method: input.method,
       message: input.message?.trim() || null,
       is_anonymous: input.is_anonymous ?? false,
       pledged_for_request: input.pledged_for_request ?? null,
-      status: "pending",
-    })
-    .select("id, reference_code")
-    .single();
+      proof_base64,
+      proof_filename,
+      proof_content_type,
+    },
+  });
 
-  if (error || !data) throw error ?? new Error("insert failed");
+  if (error) {
+    if (import.meta.env.DEV) console.error("[Donation] proxy invoke failed:", error);
+    throw new DonationSubmitError("تعذّر تسجيل التبرّع.");
+  }
 
-  if (input.proofFile) {
-    const ext = input.proofFile.name.split(".").pop() || "bin";
-    const path = `${data.id}/proof.${ext}`;
-    const up = await supabase.storage.from("payment-proofs").upload(path, input.proofFile, {
-      contentType: input.proofFile.type,
-      upsert: true,
-    });
-    if (up.error) throw up.error;
-
-    const { error: proofError } = await supabase.from("payment_proofs").insert({
-      donation_id: data.id,
-      bucket: "payment-proofs",
-      storage_path: path,
-      claimed_amount: input.amount,
-      verified: false,
-    });
-    if (proofError) throw proofError;
+  if (!data?.ok || !data.reference_code || !data.id) {
+    const message = data?.message ?? "تعذّر تسجيل التبرّع.";
+    const rateLimited =
+      typeof data?.message === "string" &&
+      (data.message.includes("تجاوزت الحد") || data.retry_after_seconds != null);
+    throw new DonationSubmitError(message, rateLimited);
   }
 
   return { reference_code: data.reference_code, id: data.id };

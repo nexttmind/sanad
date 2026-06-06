@@ -1,0 +1,21 @@
+# SANAD — Netlify deployment (TanStack Start SSR)
+# Docs: https://docs.netlify.com/build/frameworks/framework-setup-guides/tanstack-start/
+
+[build]
+  command = "npm run build"
+  publish = "dist/client"
+  functions = ".netlify/v1/functions"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[dev]
+  command = "npm run dev"
+  port = 8080
+  targetPort = 8080
+
+# Hashed Vite assets — long cache (immutable filenames)
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

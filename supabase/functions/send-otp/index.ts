@@ -1,9 +1,61 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+const DEFAULT_ALLOWED = ["http://localhost:5173", "http://localhost:3000"];
+const BASE_ALLOW_HEADERS = "authorization, x-client-info, apikey, content-type";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+function getAllowedOrigins(): string[] {
+  const raw = Deno.env.get("ALLOWED_ORIGINS");
+  if (!raw?.trim()) return DEFAULT_ALLOWED;
+  return raw.split(",").map((origin) => origin.trim()).filter(Boolean);
+}
+
+function resolveAllowedOrigin(req: Request): string | null {
+  const origin = req.headers.get("Origin");
+  if (!origin) return null;
+  return getAllowedOrigins().includes(origin) ? origin : null;
+}
+
+function corsHeadersForRequest(
+  req: Request,
+  allowHeaders: string = BASE_ALLOW_HEADERS,
+): Record<string, string> | null {
+  const origin = req.headers.get("Origin");
+  if (!origin) {
+    return { "Access-Control-Allow-Headers": allowHeaders };
+  }
+
+  const allowed = resolveAllowedOrigin(req);
+  if (!allowed) return null;
+
+  return {
+    "Access-Control-Allow-Origin": allowed,
+    "Access-Control-Allow-Headers": allowHeaders,
+    Vary: "Origin",
+  };
+}
+
+function handleCorsPreflight(
+  req: Request,
+  allowHeaders: string = BASE_ALLOW_HEADERS,
+): Response | null {
+  if (req.method !== "OPTIONS") return null;
+  const headers = corsHeadersForRequest(req, allowHeaders);
+  if (!headers) return new Response("Forbidden", { status: 403 });
+  return new Response("ok", { headers });
+}
+
+function jsonWithCors(
+  req: Request,
+  body: Record<string, unknown>,
+  status: number,
+  allowHeaders: string = BASE_ALLOW_HEADERS,
+): Response {
+  const headers = corsHeadersForRequest(req, allowHeaders);
+  if (!headers) return new Response("Forbidden", { status: 403 });
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...headers, "Content-Type": "application/json" },
+  });
+}
 
 const OTP_TTL_MINUTES = 10;
 const MAX_SENDS_PER_HOUR = 3;
@@ -11,12 +63,11 @@ const MAX_SENDS_PER_HOUR = 3;
 type SendBody = { phone: string };
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
 
   if (req.method !== "POST") {
-    return json({ ok: false, message: "Method not allowed." }, 405);
+    return jsonWithCors(req, { ok: false, message: "Method not allowed." }, 405);
   }
 
   try {
@@ -24,13 +75,13 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!supabaseUrl || !serviceKey) {
-      return json({ ok: false, message: "إعدادات الخادم غير مكتملة." }, 500);
+      return jsonWithCors(req,{ ok: false, message: "إعدادات الخادم غير مكتملة." }, 500);
     }
 
     const body = (await req.json()) as SendBody;
     const phone = normalizePhone(body.phone);
     if (!phone || phone.length < 8 || phone.length > 15) {
-      return json({ ok: false, message: "رقم الهاتف غير صالح." }, 400);
+      return jsonWithCors(req,{ ok: false, message: "رقم الهاتف غير صالح." }, 400);
     }
 
     const admin = createClient(supabaseUrl, serviceKey);
@@ -45,11 +96,11 @@ Deno.serve(async (req) => {
 
     if (countError) {
       console.error("[send-otp] rate count:", countError);
-      return json({ ok: false, message: "تعذّر إرسال الرمز." }, 500);
+      return jsonWithCors(req,{ ok: false, message: "تعذّر إرسال الرمز." }, 500);
     }
 
     if ((count ?? 0) >= MAX_SENDS_PER_HOUR) {
-      return json({ ok: false, message: "تجاوزت الحد المسموح — حاول بعد ساعة." }, 429);
+      return jsonWithCors(req,{ ok: false, message: "تجاوزت الحد المسموح — حاول بعد ساعة." }, 429);
     }
 
     const code = String(Math.floor(100000 + Math.random() * 900000));
@@ -71,16 +122,16 @@ Deno.serve(async (req) => {
 
     if (insertError) {
       console.error("[send-otp] insert:", insertError);
-      return json({ ok: false, message: "تعذّر إنشاء رمز التحقق." }, 500);
+      return jsonWithCors(req,{ ok: false, message: "تعذّر إنشاء رمز التحقق." }, 500);
     }
 
     const smsResult = await sendSms(phone, code);
     if (!smsResult.ok) {
       console.error("[send-otp] sms:", smsResult.message);
-      return json({ ok: false, message: smsResult.message ?? "تعذّر إرسال الرسالة." }, 502);
+      return jsonWithCors(req,{ ok: false, message: smsResult.message ?? "تعذّر إرسال الرسالة." }, 502);
     }
 
-    return json(
+    return jsonWithCors(req,
       {
         ok: true,
         expires_in: OTP_TTL_MINUTES * 60,
@@ -90,7 +141,7 @@ Deno.serve(async (req) => {
     );
   } catch (err) {
     console.error("[send-otp] unexpected:", err);
-    return json({ ok: false, message: "خطأ غير متوقع." }, 500);
+    return jsonWithCors(req,{ ok: false, message: "خطأ غير متوقع." }, 500);
   }
 });
 
@@ -151,9 +202,3 @@ async function sendSms(
   return { ok: true };
 }
 
-function json(body: Record<string, unknown>, status: number) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}

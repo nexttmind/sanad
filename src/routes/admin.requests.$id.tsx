@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
@@ -110,7 +110,7 @@ function Detail() {
   const [newNote, setNewNote] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const [r, n, h, f, ref, urgHist] = await Promise.all([
       supabase.from("aid_requests").select("*").eq("id", id).maybeSingle(),
       supabase.from("aid_request_notes").select("*").eq("request_id", id).order("created_at", { ascending: false }),
@@ -131,13 +131,51 @@ function Detail() {
       setQueueInfo(null);
     }
     setLoading(false);
-  };
+  }, [id]);
 
   useEffect(() => {
-    setLoading(true);
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+    let alive = true;
+    (async () => {
+      setLoading(true);
+      await load();
+      if (alive) setLoading(false);
+    })();
+    const ch = supabase
+      .channel(`admin-request-detail-${id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "aid_requests", filter: `id=eq.${id}` },
+        () => {
+          void load();
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "aid_request_notes", filter: `request_id=eq.${id}` },
+        () => {
+          void load();
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "aid_request_history", filter: `request_id=eq.${id}` },
+        () => {
+          void load();
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "aid_request_files", filter: `request_id=eq.${id}` },
+        () => {
+          void load();
+        },
+      )
+      .subscribe();
+    return () => {
+      alive = false;
+      supabase.removeChannel(ch);
+    };
+  }, [id, load]);
 
   const updateStatus = async (status: DbStatus, reason?: string) => {
     if (!s) return;

@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { logAdminAction } from "@/lib/audit-log";
 import { isLebPhone } from "@/lib/mukhtar-whitelist";
 import type { AidRowExtended } from "@/lib/request-detail-types";
@@ -230,7 +231,10 @@ export async function updateRequestFields(params: {
     dbPatch[key] = patch[key];
   }
 
-  const { error } = await supabase.from("aid_requests").update(dbPatch).eq("id", params.requestId);
+  const { error } = await supabase
+    .from("aid_requests")
+    .update(dbPatch as Database["public"]["Tables"]["aid_requests"]["Update"])
+    .eq("id", params.requestId);
   if (error) {
     if (import.meta.env.DEV) console.error("[FieldEdit] update failed:", error);
     return { ok: false, message: "تعذّر حفظ التعديلات." };

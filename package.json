@@ -13,12 +13,17 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "smoke:ship": "node scripts/smoke-ship.mjs",
+    "cron:verify-integrity": "node scripts/invoke-queue-integrity-check.mjs",
     "types:gen": "supabase gen types typescript --project-id lpdjtzwfxsjjudhxinmk > src/integrations/supabase/types.ts",
-    "functions:deploy": "supabase functions deploy send-otp --project-ref lpdjtzwfxsjjudhxinmk && supabase functions deploy admin-user-management --project-ref lpdjtzwfxsjjudhxinmk && supabase functions deploy export-job-url --project-ref lpdjtzwfxsjjudhxinmk && supabase functions deploy queue-integrity-check --project-ref lpdjtzwfxsjjudhxinmk",
+    "functions:deploy": "supabase functions deploy send-otp --project-ref lpdjtzwfxsjjudhxinmk && supabase functions deploy admin-user-management --project-ref lpdjtzwfxsjjudhxinmk && supabase functions deploy export-job-url --project-ref lpdjtzwfxsjjudhxinmk && supabase functions deploy queue-integrity-check --project-ref lpdjtzwfxsjjudhxinmk && supabase functions deploy track-request-proxy --project-ref lpdjtzwfxsjjudhxinmk && supabase functions deploy submit-donation --project-ref lpdjtzwfxsjjudhxinmk && supabase functions deploy submit-aid-request --project-ref lpdjtzwfxsjjudhxinmk && supabase functions deploy upload-id-doc --project-ref lpdjtzwfxsjjudhxinmk",
     "functions:deploy:otp": "supabase functions deploy send-otp --project-ref lpdjtzwfxsjjudhxinmk",
     "functions:deploy:admin-users": "supabase functions deploy admin-user-management --project-ref lpdjtzwfxsjjudhxinmk",
     "functions:deploy:export-job-url": "supabase functions deploy export-job-url --project-ref lpdjtzwfxsjjudhxinmk",
-    "functions:deploy:queue-integrity-check": "supabase functions deploy queue-integrity-check --project-ref lpdjtzwfxsjjudhxinmk"
+    "functions:deploy:queue-integrity-check": "supabase functions deploy queue-integrity-check --project-ref lpdjtzwfxsjjudhxinmk",
+    "functions:deploy:track-request-proxy": "supabase functions deploy track-request-proxy --project-ref lpdjtzwfxsjjudhxinmk",
+    "functions:deploy:submit-donation": "supabase functions deploy submit-donation --project-ref lpdjtzwfxsjjudhxinmk",
+    "functions:deploy:submit-aid-request": "supabase functions deploy submit-aid-request --project-ref lpdjtzwfxsjjudhxinmk",
+    "functions:deploy:upload-id-doc": "supabase functions deploy upload-id-doc --project-ref lpdjtzwfxsjjudhxinmk"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -79,6 +84,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
+    "@netlify/vite-plugin-tanstack-start": "^1.3.15",
     "@types/node": "^22.16.5",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.0",

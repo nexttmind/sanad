@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import {
+  DonationSubmitError,
   METHOD_UI_TO_DB,
   submitDonation,
   type DonationMethod,
@@ -64,7 +65,11 @@ export function DonationSubmitForm({ intent, onMethodKeyChange }: Props) {
       if (fileRef.current) fileRef.current.value = "";
     } catch (err) {
       if (import.meta.env.DEV) console.error("[DonationSubmit]", err);
-      setError("تعذّر تسجيل التبرّع. تحقق من البيانات وحاول مجدداً.");
+      if (err instanceof DonationSubmitError) {
+        setError(err.message);
+      } else {
+        setError("تعذّر تسجيل التبرّع. تحقق من البيانات وحاول مجدداً.");
+      }
     }
     setBusy(false);
   };

@@ -153,7 +153,48 @@ export async function findExistingCompletion(
 
 export type CompleteDistributionResult =
   | { ok: true }
-  | { ok: false; code: "not_found" | "not_approved" | "bad_pin" | "duplicate" | "db"; message: string };
+  | {
+      ok: false;
+      code:
+        | "not_found"
+        | "not_approved"
+        | "bad_pin"
+        | "duplicate"
+        | "locked"
+        | "not_authorized"
+        | "db";
+      message: string;
+    };
+
+type PinVerifyResult = {
+  ok?: boolean;
+  code?: string;
+  message?: string;
+};
+
+function parsePinVerifyResult(data: unknown): PinVerifyResult {
+  return (data ?? {}) as PinVerifyResult;
+}
+
+async function verifyDistributionPin(
+  requestId: string,
+  pin: string,
+): Promise<PinVerifyResult> {
+  const { data, error } = await supabase.rpc("verify_distribution_pin", {
+    _request_id: requestId,
+    _pin: pin.trim(),
+  });
+  if (error) throw error;
+  return parsePinVerifyResult(data);
+}
+
+const PIN_ERROR_CODES = new Set([
+  "not_found",
+  "not_approved",
+  "bad_pin",
+  "locked",
+  "not_authorized",
+]);
 
 export async function completeDistribution(params: {
   requestId: string;
@@ -178,9 +219,23 @@ export async function completeDistribution(params: {
     };
   }
 
-  const expectedPin = request.qr_pin;
-  if (!expectedPin || params.pin.trim() !== expectedPin) {
-    return { ok: false, code: "bad_pin", message: "رمز PIN غير صحيح." };
+  let pinCheck: PinVerifyResult;
+  try {
+    pinCheck = await verifyDistributionPin(params.requestId, params.pin);
+  } catch (err) {
+    if (import.meta.env.DEV) console.error("[Distribution] verify_distribution_pin:", err);
+    return { ok: false, code: "db", message: "تعذّر التحقق من رمز PIN." };
+  }
+
+  if (!pinCheck.ok) {
+    const code = PIN_ERROR_CODES.has(pinCheck.code ?? "")
+      ? (pinCheck.code as Exclude<CompleteDistributionResult, { ok: true }>["code"])
+      : "db";
+    return {
+      ok: false,
+      code,
+      message: pinCheck.message ?? "رمز PIN غير صحيح.",
+    };
   }
 
   const { error: insertError } = await supabase.from("qr_completions").insert({

@@ -3,12 +3,13 @@ import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { PublicNav } from "@/components/PublicNav";
 import { PublicFooter } from "@/components/PublicFooter";
-import { supabase } from "@/integrations/supabase/client";
 import { insertSubmissionReference } from "@/lib/submission-reference";
+import { submitAidRequest } from "@/lib/submit-aid-request";
+import { uploadIdDocument } from "@/lib/upload-id-doc";
 import { getDeviceFingerprint } from "@/lib/device-fingerprint";
 import { PhoneOtpSection } from "@/components/PhoneOtpSection";
-import { fetchDonationImpactStats, type DonationImpactStats } from "@/lib/donations";
-import heroImg from "@/assets/hero-2.jpg";
+import { useDonationImpactStats, type DonationImpactStats } from "@/lib/donations";
+import { aidRequestHeroPhoto } from "@/lib/donate-photos";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -272,7 +273,7 @@ function RequestHome() {
   const [docError, setDocError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [phoneVerified, setPhoneVerified] = useState(false);
-  const [publicStats, setPublicStats] = useState<DonationImpactStats>(DEFAULT_STATS);
+  const { data: publicStats = DEFAULT_STATS } = useDonationImpactStats();
 
   // -------- touched / submit-attempted
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -283,17 +284,6 @@ function RequestHome() {
   const showSchoolName = shelter === "مدرسة" || shelter === "مأوى جماعي";
   const toggleNeed = (n: string) => setNeeds((arr) => arr.includes(n) ? arr.filter((x) => x !== n) : [...arr, n]);
   const hasNeed = (n: string) => needs.includes(n);
-
-  useEffect(() => {
-    void (async () => {
-      try {
-        const stats = await fetchDonationImpactStats();
-        setPublicStats(stats);
-      } catch (err) {
-        if (import.meta.env.DEV) console.error("[Public stats]", err);
-      }
-    })();
-  }, []);
 
   const heroStats = [
     { num: publicStats.requests_received, suffix: "", label: "طلب مستلم" },
@@ -443,27 +433,17 @@ function RequestHome() {
           critical ? "حالة طبية حرجة" : "",
           hasPrescription ? "يوجد وصفة طبية" : "",
         ].filter(Boolean).join("\n") || null,
-        // Must match RLS policy "anyone can submit" — scores/flags recalculated server-side after insert.
-        status: "submitted" as const,
-        trust_score: 50,
-        urgency_score: 50,
-        risk_level: "medium" as const,
-        priority_override: false,
-        is_duplicate: false,
-        phone_verified: phoneVerified,
-        flags: [] as string[],
         submission_seconds: Math.round(elapsed),
         user_agent: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 240) : null,
         device_fingerprint: deviceFingerprint,
       };
 
-      const { data, error } = await supabase
-        .from("aid_requests")
-        .insert(payload)
-        .select("id, reference_code")
-        .single();
-
-      if (error || !data) throw error || new Error("insert failed");
+      const submitResult = await submitAidRequest(payload);
+      if (!submitResult.ok) {
+        setSubmitError(submitResult.message);
+        return;
+      }
+      const data = { id: submitResult.id, reference_code: submitResult.reference_code };
 
       await insertSubmissionReference({
         request_id: data.id,
@@ -476,23 +456,11 @@ function RequestHome() {
         notes: refNotes.trim() || null,
       });
 
-      // Upload document file if present
+      // Upload document file if present (rate-limited edge proxy — Step 4.1)
       if (docFile) {
-        const ext = docFile.name.split(".").pop() || "bin";
-        const path = `${data.id}/id.${ext}`;
-        const up = await supabase.storage.from("id-docs").upload(path, docFile, {
-          contentType: docFile.type,
-          upsert: true,
-        });
-        if (!up.error) {
-          await supabase.from("aid_request_files").insert({
-            request_id: data.id,
-            kind: "id",
-            bucket: "id-docs",
-            storage_path: path,
-            mime: docFile.type,
-            size_bytes: docFile.size,
-          });
+        const uploadResult = await uploadIdDocument(data.id, docFile);
+        if (!uploadResult.ok && import.meta.env.DEV) {
+          console.error("[RequestSubmit] id doc upload:", uploadResult.message);
         }
       }
 
@@ -522,7 +490,7 @@ function RequestHome() {
       {/* HERO — cinematic, logo-led */}
       <section className="relative isolate overflow-hidden bg-ink text-white">
         <div className="absolute inset-0">
-          <img src={heroImg} alt="" className="kb-2 h-full w-full object-cover opacity-55" />
+          <img src={aidRequestHeroPhoto} alt="" className="kb-2 h-full w-full object-cover opacity-55" />
           <div className="absolute inset-0 bg-gradient-to-b from-ink/40 via-ink/70 to-background" />
           <div className="absolute inset-0 grain" />
         </div>

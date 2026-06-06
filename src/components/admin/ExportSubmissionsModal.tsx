@@ -3,8 +3,10 @@ import { Loader2 } from "lucide-react";
 import { logAdminAction } from "@/lib/audit-log";
 import {
   ASYNC_EXPORT_ROW_MAX,
+  CORE_EXPORT_COLUMNS,
   DEFAULT_EXPORT_COLUMNS,
   EXPORT_COLUMNS,
+  OPTIONAL_EXPORT_COLUMNS,
   SYNC_EXPORT_ROW_LIMIT,
   createExportJob,
   downloadCsv,
@@ -124,33 +126,63 @@ export function ExportSubmissionsModal({ filters, actorName, initialColumns, onC
           </div>
         )}
 
-        <div className="mt-4">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">الأعمدة</span>
-            <button
-              type="button"
-              className="text-[11px] text-clay hover:underline"
-              onClick={() => setSelected([...DEFAULT_EXPORT_COLUMNS])}
-              disabled={exporting}
-            >
-              تحديد الكل
-            </button>
+        <div className="mt-4 space-y-4">
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">الأعمدة الأساسية</span>
+              <button
+                type="button"
+                className="text-[11px] text-clay hover:underline"
+                onClick={() => setSelected([...DEFAULT_EXPORT_COLUMNS])}
+                disabled={exporting}
+              >
+                الأساسية فقط
+              </button>
+            </div>
+            <ul className="grid grid-cols-2 gap-1.5 text-xs">
+              {CORE_EXPORT_COLUMNS.map(({ key, label }) => (
+                <li key={key}>
+                  <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 hover:bg-surface">
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(key)}
+                      onChange={() => toggleColumn(key)}
+                      disabled={exporting}
+                    />
+                    {label}
+                  </label>
+                </li>
+              ))}
+            </ul>
           </div>
-          <ul className="grid grid-cols-2 gap-1.5 text-xs">
-            {EXPORT_COLUMNS.map(({ key, label }) => (
-              <li key={key}>
-                <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 hover:bg-surface">
-                  <input
-                    type="checkbox"
-                    checked={selected.includes(key)}
-                    onChange={() => toggleColumn(key)}
-                    disabled={exporting}
-                  />
-                  {label}
-                </label>
-              </li>
-            ))}
-          </ul>
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">أعمدة اختيارية</span>
+              <button
+                type="button"
+                className="text-[11px] text-clay hover:underline"
+                onClick={() => setSelected(EXPORT_COLUMNS.map((c) => c.key))}
+                disabled={exporting}
+              >
+                تحديد الكل
+              </button>
+            </div>
+            <ul className="grid grid-cols-2 gap-1.5 text-xs">
+              {OPTIONAL_EXPORT_COLUMNS.map(({ key, label }) => (
+                <li key={key}>
+                  <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 hover:bg-surface">
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(key)}
+                      onChange={() => toggleColumn(key)}
+                      disabled={exporting}
+                    />
+                    {label}
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
 
         {error && (

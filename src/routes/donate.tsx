@@ -4,24 +4,22 @@ import { DonationSubmitForm, type DonationIntent } from "@/components/DonationSu
 import { PublicNav } from "@/components/PublicNav";
 import { PublicFooter } from "@/components/PublicFooter";
 import {
-  fetchAdoptableFamilies,
-  fetchDonationImpactStats,
-  fetchDonationProofPhotos,
-  fetchPublicLedger,
   fetchRecentDonationMessages,
   formatBeneficiaryLabel,
   formatLedgerDate,
   ledgerItemLabel,
+  useAdoptableFamilies,
+  useDonationImpactStats,
+  usePublicLedger,
   type AdoptableFamily,
   type DonationImpactStats,
-  type DonationProofPhotoRow,
   type LedgerRow,
   type PledgeMessage,
 } from "@/lib/donations";
 import hero1 from "@/assets/hero-1.jpg";
 import hero3 from "@/assets/hero-3.jpg";
 import hero4 from "@/assets/hero-4.jpg";
-import { proofPhotoSrcMap } from "@/lib/donate-photos";
+import { DonationJourney } from "@/components/DonationJourney";
 
 export const Route = createFileRoute("/donate")({
   head: () => ({
@@ -34,6 +32,15 @@ export const Route = createFileRoute("/donate")({
   }),
   component: DonatePage,
 });
+
+const DEFAULT_DONATE_STATS: DonationImpactStats = {
+  week_total_usd: 0,
+  families_helped: 0,
+  last_donation_minutes: null,
+  requests_received: 0,
+  verify_rate: 0,
+  avg_response_minutes: null,
+};
 
 /* ----------------------------- atoms ----------------------------- */
 function Counter({ to, suffix = "" }: { to: number; suffix?: string }) {
@@ -79,33 +86,6 @@ const heroFrames = [
   { src: hero3, kb: "kb-3" },
   { src: hero4, kb: "kb-4" },
 ];
-
-type ProofPhoto = { src: string; label: string };
-
-function DonationProofs({ photos }: { photos: ProofPhoto[] }) {
-  return (
-    <section className="border-t border-border bg-background">
-      <div className="mx-auto max-w-6xl px-5 py-14 sm:px-6 sm:py-20 lg:px-10">
-        <Kicker>رحلة التبرع</Kicker>
-        <h2 className="mt-3 font-display text-3xl leading-tight sm:text-4xl md:text-5xl">
-          هذه الصور تعرض رحلة المبلغ من التبرع إلى التوزيع
-        </h2>
-        <p className="mt-4 max-w-2xl text-[14px] leading-relaxed text-muted-foreground sm:text-base">
-          نقسم هنا بعض صور الوثائق التي جمعناها من عمليات الشراء والتوزيع الفعلية، لتوضيح كيف تتحول كل مساهمة إلى مساعدة ملموسة.
-        </p>
-
-        <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {proofPhotos.map((photo) => (
-            <div key={photo.src} className="overflow-hidden rounded-3xl border border-border bg-card">
-              <img src={photo.src} alt={photo.label} className="h-64 w-full object-cover" />
-              <div className="px-4 py-3 text-sm text-muted-foreground">{photo.label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
 
 function Hero({ stats }: { stats: DonationImpactStats }) {
   const [i, setI] = useState(0);
@@ -686,42 +666,16 @@ function DonatePage() {
     pledgedRequestId: null,
     pledgedRequestCode: null,
   });
-  const [stats, setStats] = useState<DonationImpactStats>({
-    week_total_usd: 0,
-    families_helped: 0,
-    last_donation_minutes: null,
-  });
-  const [families, setFamilies] = useState<AdoptableFamily[]>([]);
-  const [ledger, setLedger] = useState<LedgerRow[]>([]);
+  const { data: stats = DEFAULT_DONATE_STATS } = useDonationImpactStats();
+  const { data: families = [] } = useAdoptableFamilies(10);
+  const { data: ledger = [] } = usePublicLedger(10);
   const [pledges, setPledges] = useState<PledgeMessage[]>([]);
-  const [proofPhotos, setProofPhotos] = useState<ProofPhoto[]>([]);
-
   useEffect(() => {
     void (async () => {
       try {
-        const [s, f, l, p] = await Promise.all([
-          fetchDonationImpactStats(),
-          fetchAdoptableFamilies(10),
-          fetchPublicLedger(10),
-          fetchRecentDonationMessages(6),
-        ]);
-        setStats(s);
-        setFamilies(f);
-        setLedger(l);
-        setPledges(p);
+        setPledges(await fetchRecentDonationMessages(6));
       } catch (err) {
-        if (import.meta.env.DEV) console.error("[Donate]", err);
-      }
-
-      try {
-        const photos = await fetchDonationProofPhotos();
-        setProofPhotos(
-          photos
-            .map((row) => ({ src: proofPhotoSrcMap[row.asset_key] ?? "", label: row.label }))
-            .filter((photo) => photo.src),
-        );
-      } catch (err) {
-        if (import.meta.env.DEV) console.error("[Donate proof photos]", err);
+        if (import.meta.env.DEV) console.error("[Donate pledges]", err);
       }
     })();
   }, []);
@@ -735,7 +689,7 @@ function DonatePage() {
       <PublicNav tone="dark" />
       <Hero stats={stats} />
       <Promise />
-      {proofPhotos.length > 0 && <DonationProofs photos={proofPhotos} />}
+      <DonationJourney />
       <Allocate amount={intent.amount} onAmountChange={(amount) => setIntent((p) => ({ ...p, amount }))} />
       <Families
         families={families}

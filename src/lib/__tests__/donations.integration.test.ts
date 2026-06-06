@@ -1,10 +1,10 @@
-import { buildMockQuery } from "@/test/helpers/mock-builders";
 import { resetSupabaseMock, supabase } from "@/integrations/supabase/__mocks__/client";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 vi.mock("@/integrations/supabase/client");
 
 import {
+  DonationSubmitError,
   fetchDonationImpactStats,
   fetchPublicLedger,
   submitDonation,
@@ -51,13 +51,14 @@ describe("donations supabase flows", () => {
   it("submitDonation rejects invalid input", async () => {
     await expect(
       submitDonation({ donor_name: "", amount: 0, method: "whish" }),
-    ).rejects.toThrow("invalid donation");
+    ).rejects.toThrow(DonationSubmitError);
   });
 
-  it("submitDonation inserts donation row", async () => {
-    supabase.from.mockReturnValue(
-      buildMockQuery({ data: { id: "don-1", reference_code: "DON-ABC" }, error: null }),
-    );
+  it("submitDonation invokes submit-donation edge function", async () => {
+    supabase.functions.invoke.mockResolvedValue({
+      data: { ok: true, id: "don-1", reference_code: "DON-ABC" },
+      error: null,
+    });
 
     const result = await submitDonation({
       donor_name: "Ahmad",
@@ -66,5 +67,30 @@ describe("donations supabase flows", () => {
     });
 
     expect(result.reference_code).toBe("DON-ABC");
+    expect(supabase.functions.invoke).toHaveBeenCalledWith("submit-donation", {
+      body: expect.objectContaining({
+        donor_name: "Ahmad",
+        amount: 50,
+        method: "whish",
+      }),
+    });
+  });
+
+  it("submitDonation surfaces rate limit message", async () => {
+    supabase.functions.invoke.mockResolvedValue({
+      data: {
+        ok: false,
+        message: "تجاوزت الحد المسموح لتسجيل التبرّعات — حاول لاحقاً.",
+        retry_after_seconds: 900,
+      },
+      error: null,
+    });
+
+    await expect(
+      submitDonation({ donor_name: "Ahmad", amount: 50, method: "whish" }),
+    ).rejects.toMatchObject({
+      message: "تجاوزت الحد المسموح لتسجيل التبرّعات — حاول لاحقاً.",
+      rateLimited: true,
+    });
   });
 });

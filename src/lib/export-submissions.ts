@@ -12,16 +12,27 @@ export type ExportColumnKey =
   | "housing_type"
   | "family_size"
   | "infants"
+  | "children"
+  | "elderly"
+  | "needs"
+  | "flags"
   | "status"
   | "trust_score"
   | "urgency_score"
   | "effective_urgency"
   | "urgency_tier"
   | "risk_level"
+  | "assigned_to"
+  | "tags"
+  | "reference_type"
+  | "reference_name"
+  | "reference_phone"
+  | "reference_region"
+  | "reference_contact_result"
   | "created_at"
   | "queued_at";
 
-export const EXPORT_COLUMNS: { key: ExportColumnKey; label: string }[] = [
+export const CORE_EXPORT_COLUMNS: { key: ExportColumnKey; label: string }[] = [
   { key: "queue_number", label: "رقم الدور" },
   { key: "reference_code", label: "رمز الطلب" },
   { key: "full_name", label: "الاسم" },
@@ -41,7 +52,26 @@ export const EXPORT_COLUMNS: { key: ExportColumnKey; label: string }[] = [
   { key: "queued_at", label: "تاريخ الدور" },
 ];
 
-export const DEFAULT_EXPORT_COLUMNS: ExportColumnKey[] = EXPORT_COLUMNS.map((c) => c.key);
+export const OPTIONAL_EXPORT_COLUMNS: { key: ExportColumnKey; label: string }[] = [
+  { key: "children", label: "الأطفال" },
+  { key: "elderly", label: "كبار السن" },
+  { key: "needs", label: "الاحتياجات" },
+  { key: "flags", label: "إشارات الاحتيال" },
+  { key: "assigned_to", label: "معرّف المراجع" },
+  { key: "tags", label: "الوسوم" },
+  { key: "reference_type", label: "نوع المرجع" },
+  { key: "reference_name", label: "اسم المرجع" },
+  { key: "reference_phone", label: "هاتف المرجع" },
+  { key: "reference_region", label: "منطقة المرجع" },
+  { key: "reference_contact_result", label: "نتيجة التحقق من المرجع" },
+];
+
+export const EXPORT_COLUMNS: { key: ExportColumnKey; label: string }[] = [
+  ...CORE_EXPORT_COLUMNS,
+  ...OPTIONAL_EXPORT_COLUMNS,
+];
+
+export const DEFAULT_EXPORT_COLUMNS: ExportColumnKey[] = CORE_EXPORT_COLUMNS.map((c) => c.key);
 
 /** Sync RPC export cap — larger sets use export_jobs. */
 export const SYNC_EXPORT_ROW_LIMIT = 5000;
@@ -56,7 +86,7 @@ export function loadSavedExportColumns(): ExportColumnKey[] {
     if (!raw) return DEFAULT_EXPORT_COLUMNS;
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return DEFAULT_EXPORT_COLUMNS;
-    const valid = new Set(DEFAULT_EXPORT_COLUMNS);
+    const valid = new Set(EXPORT_COLUMNS.map((c) => c.key));
     const cols = parsed.filter((k): k is ExportColumnKey => typeof k === "string" && valid.has(k as ExportColumnKey));
     return cols.length > 0 ? cols : DEFAULT_EXPORT_COLUMNS;
   } catch {
@@ -71,7 +101,7 @@ export function saveExportColumns(columns: ExportColumnKey[]): void {
 
 export function resolveExportColumns(cols: string[] | null | undefined): ExportColumnKey[] {
   if (!cols?.length) return loadSavedExportColumns();
-  const valid = new Set(DEFAULT_EXPORT_COLUMNS);
+  const valid = new Set(EXPORT_COLUMNS.map((c) => c.key));
   const filtered = cols.filter(
     (k): k is ExportColumnKey => typeof k === "string" && valid.has(k as ExportColumnKey),
   );

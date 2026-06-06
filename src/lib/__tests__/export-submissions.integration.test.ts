@@ -14,6 +14,7 @@ import {
   needsAsyncExport,
   runExportJobUntilComplete,
   DEFAULT_EXPORT_COLUMNS,
+  EXPORT_COLUMNS,
 } from "@/lib/export-submissions";
 
 describe("export-submissions supabase flows", () => {
@@ -117,6 +118,12 @@ describe("export-submissions helpers", () => {
 
   it("exportFilename uses ISO date stamp", () => {
     expect(exportFilename("test-export")).toMatch(/^test-export-\d{4}-\d{2}-\d{2}\.csv$/);
+  });
+
+  it("DEFAULT_EXPORT_COLUMNS excludes optional extended columns", () => {
+    expect(DEFAULT_EXPORT_COLUMNS).not.toContain("tags");
+    expect(DEFAULT_EXPORT_COLUMNS).not.toContain("reference_name");
+    expect(EXPORT_COLUMNS.some((c) => c.key === "needs")).toBe(true);
   });
 
   it("filterCsvColumns keeps BOM and selected headers only", () => {

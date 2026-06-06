@@ -11,3 +11,15 @@ verify_jwt = false
 
 [functions.queue-integrity-check]
 verify_jwt = false
+
+[functions.track-request-proxy]
+verify_jwt = false
+
+[functions.submit-donation]
+verify_jwt = false
+
+[functions.submit-aid-request]
+verify_jwt = false
+
+[functions.upload-id-doc]
+verify_jwt = false
