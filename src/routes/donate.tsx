@@ -140,7 +140,7 @@ function Hero({ stats }: { stats: DonationImpactStats }) {
         </div>
 
         {/* live ticker bar */}
-        <div className="mt-10 grid grid-cols-3 gap-px overflow-hidden rounded-2xl border border-white/15 bg-white/5 backdrop-blur-sm">
+        <div className="mt-10 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-white/15 bg-white/5 backdrop-blur-sm min-[400px]:grid-cols-3">
           {[
             { k: "الأسبوع الحالي", v: Math.round(stats.week_total_usd), suf: "$" },
             { k: "عائلات تمّ دعمها", v: stats.families_helped, suf: "" },
@@ -150,11 +150,11 @@ function Hero({ stats }: { stats: DonationImpactStats }) {
               suf: stats.last_donation_minutes != null ? " د" : "",
             },
           ].map((s) => (
-            <div key={s.k} className="bg-ink/40 p-4 text-center sm:p-5">
-              <div className="font-display text-2xl text-white sm:text-3xl">
+            <div key={s.k} className="bg-ink/40 p-3 text-center sm:p-5">
+              <div className="font-display text-xl text-white sm:text-3xl">
                 <Counter to={s.v} suffix={s.suf} />
               </div>
-              <div className="mt-1 text-[10px] uppercase tracking-wider text-white/60 sm:text-[11px]">{s.k}</div>
+              <div className="mt-1 text-[9px] uppercase tracking-wider text-white/60 sm:text-[11px]">{s.k}</div>
             </div>
           ))}
         </div>
@@ -232,14 +232,14 @@ function Allocate({
 
             <div className="mt-8">
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground">المبلغ بالدولار</div>
-              <div className="mt-3 grid grid-cols-5 gap-2">
+              <div className="mt-3 grid grid-cols-3 gap-1.5 sm:grid-cols-5 sm:gap-2">
                 {allocations.map((a) => (
                   <button
                     key={a.amt}
                     type="button"
                     onClick={() => { onAmountChange(a.amt); setCustom(""); }}
                     className={[
-                      "rounded-xl border px-2 py-3 font-display text-base transition sm:text-lg",
+                      "rounded-xl border px-1.5 py-2.5 font-display text-sm transition sm:px-2 sm:py-3 sm:text-lg",
                       eff === a.amt && !custom ? "border-clay bg-clay text-white" : "border-border bg-background hover:border-clay/60",
                     ].join(" ")}
                   >${a.amt}</button>
@@ -317,7 +317,7 @@ function Families({
   return (
     <section id="families" className="bg-background">
       <div className="mx-auto max-w-6xl px-5 py-14 sm:px-6 sm:py-20 lg:px-10">
-        <div className="flex items-end justify-between gap-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
           <div>
             <Kicker>تبنَّ عائلة</Kicker>
             <h2 className="mt-3 font-display text-3xl leading-tight sm:text-4xl md:text-5xl">
@@ -411,8 +411,8 @@ function Ledger({ rows }: { rows: LedgerRow[] }) {
           </div>
         </div>
 
-        <div className="mt-8 overflow-hidden rounded-2xl border border-border bg-background">
-          <table className="w-full text-right text-[13px] sm:text-sm">
+        <div className="table-scroll mt-8 overflow-x-auto rounded-2xl border border-border bg-background">
+          <table className="w-full min-w-[520px] text-right text-[13px] sm:min-w-0 sm:text-sm">
             <thead className="bg-surface/70 text-[10px] uppercase tracking-wider text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 font-medium sm:px-5">التاريخ</th>
@@ -512,7 +512,7 @@ function Methods({
         </h2>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:gap-10">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2">
             {methods.map((x) => (
               <button
                 key={x.key}

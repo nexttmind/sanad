@@ -12,6 +12,15 @@ import { bulkAssignReviewer, selectTopForBulkAssign } from "@/lib/queue-assign";
 import { listSubmissions } from "@/lib/submissions-list";
 import { QueueIntegrityPanel } from "@/components/admin/QueueIntegrityPanel";
 import { ExportSubmissionsModal } from "@/components/admin/ExportSubmissionsModal";
+import {
+  AdminDesktopTable,
+  AdminMobileCard,
+  AdminMobileCardActions,
+  AdminMobileCardGrid,
+  AdminMobileCardHeader,
+  AdminMobileCardLink,
+  AdminMobileList,
+} from "@/components/admin/AdminMobileCard";
 import { loadSavedExportColumns, type ExportColumnKey } from "@/lib/export-submissions";
 import type { AidRowExtended } from "@/lib/request-detail-types";
 import {
@@ -149,7 +158,7 @@ function WorkQueue() {
                 value={bulkReviewerId}
                 onChange={(e) => setBulkReviewerId(e.target.value)}
                 disabled={bulkBusy || staff.length === 0}
-                className="block min-w-[180px] rounded-md border border-border bg-background px-3 py-2 text-sm"
+                className="block w-full min-w-0 rounded-md border border-border bg-background px-3 py-2 text-sm sm:w-auto sm:min-w-[180px]"
               >
                 <option value="">— اختر مراجعاً —</option>
                 {staff.map((m) => (
@@ -214,7 +223,8 @@ function WorkQueue() {
         />
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+      <div className="rounded-xl border border-border bg-card">
+        <AdminDesktopTable>
         <table className="w-full min-w-[640px] text-right text-sm">
           <thead>
             <tr className="border-b border-border bg-surface text-[11px] uppercase text-muted-foreground">
@@ -289,6 +299,47 @@ function WorkQueue() {
             )}
           </tbody>
         </table>
+        </AdminDesktopTable>
+
+        <AdminMobileList
+          loading={loading}
+          empty={!loading && rows.length === 0}
+          emptyMessage="لا توجد طلبات في هذا الدور."
+        >
+          {rows.map((s) => {
+            const urg = s.effective_urgency ?? s.urgency_score;
+            const tierKey = (s.urgency_tier ?? "medium") as UrgencyTier;
+            return (
+              <AdminMobileCard key={s.id}>
+                <AdminMobileCardHeader
+                  title={s.full_name}
+                  mono={s.reference_code}
+                  badge={
+                    s.urgency_tier ? (
+                      <span className={["rounded-full border px-2 py-0.5 text-[10px]", TIER_BADGE_CLASS[tierKey]].join(" ")}>
+                        {TIER_LABELS[tierKey]}
+                      </span>
+                    ) : undefined
+                  }
+                />
+                <AdminMobileCardGrid
+                  rows={[
+                    { label: "الدور", value: formatQueueNumber(s.queue_number) },
+                    { label: "المنطقة", value: s.governorate ?? "—" },
+                    { label: "العجلة", value: <span className={urgencyScoreColor(urg)}>{urg}</span> },
+                    { label: "الانتظار", value: formatWaitDuration(s.queued_at ?? s.created_at) },
+                    { label: "المراجع", value: s.assigned_to ? (staffNames[s.assigned_to] ?? "—") : "—" },
+                  ]}
+                />
+                <AdminMobileCardActions>
+                  <AdminMobileCardLink to="/admin/requests/$id" params={{ id: s.id }}>
+                    عرض ←
+                  </AdminMobileCardLink>
+                </AdminMobileCardActions>
+              </AdminMobileCard>
+            );
+          })}
+        </AdminMobileList>
       </div>
     </div>
   );

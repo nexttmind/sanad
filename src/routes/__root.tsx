@@ -64,7 +64,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: "سند — منصة المساعدات الإنسانية" },
       { name: "description", content: "سند: منصة لإيصال المساعدات الإنسانية إلى العائلات النازحة في الجنوب اللبناني، بشفافية ودون وسطاء." },
       { name: "author", content: "SANAD" },

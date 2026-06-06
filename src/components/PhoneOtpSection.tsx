@@ -118,13 +118,15 @@ export function PhoneOtpSection({
       </div>
       {sent && (
         <div className="space-y-2">
-          <InputOTP maxLength={6} value={code} onChange={setCode}>
+          <div className="flex justify-center overflow-x-auto">
+            <InputOTP maxLength={6} value={code} onChange={setCode}>
             <InputOTPGroup>
               {Array.from({ length: 6 }).map((_, i) => (
                 <InputOTPSlot key={i} index={i} />
               ))}
             </InputOTPGroup>
           </InputOTP>
+          </div>
           <button
             type="button"
             disabled={verifying || code.length < 6}

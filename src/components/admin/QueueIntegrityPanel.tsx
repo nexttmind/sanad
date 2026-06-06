@@ -148,7 +148,7 @@ export function QueueIntegrityPanel() {
 
           {report.duplicate_phones_pending.length > 0 && (
             <IssueBlock title="أرقام هاتف مكرّرة في الدور النشط (إعلامي)">
-              <div className="overflow-x-auto">
+              <div className="table-scroll overflow-x-auto">
                 <table className="w-full min-w-[480px] text-right text-xs">
                   <thead>
                     <tr className="border-b border-border text-muted-foreground">

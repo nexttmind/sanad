@@ -11,6 +11,14 @@ import {
   type MukhtarWhitelistRow,
 } from "@/lib/mukhtar-whitelist";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  AdminDesktopTable,
+  AdminMobileCard,
+  AdminMobileCardActions,
+  AdminMobileCardGrid,
+  AdminMobileCardHeader,
+  AdminMobileList,
+} from "@/components/admin/AdminMobileCard";
 
 export const Route = createFileRoute("/admin/references")({
   component: References,
@@ -250,10 +258,11 @@ function References() {
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-card">
-        <div className="flex items-center justify-between border-b border-border px-5 py-3 text-xs text-muted-foreground">
+      <div className="rounded-xl border border-border bg-card">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3 text-xs text-muted-foreground sm:px-5">
           <div>{loading ? "جارٍ التحميل..." : `${filtered.length} مرجع`}</div>
         </div>
+        <AdminDesktopTable>
         <table className="w-full min-w-[640px] text-right text-sm">
           <thead>
             <tr className="border-b border-border bg-surface text-[11px] uppercase text-muted-foreground">
@@ -345,6 +354,67 @@ function References() {
             )}
           </tbody>
         </table>
+        </AdminDesktopTable>
+
+        <AdminMobileList loading={loading} empty={!loading && filtered.length === 0} emptyMessage="لا توجد مراجع.">
+          {filtered.map((r) => {
+            const type = r.reference_type ?? r.title ?? "—";
+            const active = r.is_active !== false;
+            const verified = !!r.verified_at;
+            return (
+              <AdminMobileCard key={r.id}>
+                <AdminMobileCardHeader
+                  title={r.full_name}
+                  mono={r.phone}
+                  badge={
+                    verified ? (
+                      <span className="rounded-full border border-success/40 bg-success/10 px-2 py-0.5 text-[10px] text-success">
+                        موثّق
+                      </span>
+                    ) : (
+                      <span className="rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-[10px] text-warning">
+                        قيد التحقق
+                      </span>
+                    )
+                  }
+                />
+                <AdminMobileCardGrid
+                  rows={[
+                    { label: "النوع", value: type },
+                    {
+                      label: "المنطقة",
+                      value: [r.region, r.village].filter(Boolean).join(" · ") || "—",
+                    },
+                    { label: "الإشارات", value: r.times_referenced ?? 0 },
+                    { label: "الحالة", value: active ? "نشط" : "معطّل" },
+                  ]}
+                />
+                <AdminMobileCardActions>
+                  {!verified && active && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void verify(r)}
+                      className="text-xs text-success hover:underline disabled:opacity-50"
+                    >
+                      توثيق
+                    </button>
+                  )}
+                  {active && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void deactivate(r)}
+                      className="text-xs text-destructive hover:underline disabled:opacity-50"
+                    >
+                      تعطيل
+                    </button>
+                  )}
+                </AdminMobileCardActions>
+              </AdminMobileCard>
+            );
+          })}
+        </AdminMobileList>
       </div>
     </div>
   );

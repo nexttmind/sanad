@@ -21,11 +21,11 @@ type Props = {
   onSaved: () => void | Promise<void>;
 };
 
-function Row({ label, value }: { label: string; value: ReactNode }) {
+function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[10rem_1fr] gap-3 border-b border-border/60 py-2.5 text-sm last:border-b-0">
-      <div className="text-muted-foreground">{label}</div>
-      <div className="text-foreground">{value ?? "—"}</div>
+    <div className="detail-row">
+      <div className="detail-row-label">{label}</div>
+      <div className="detail-row-value">{value ?? "—"}</div>
     </div>
   );
 }
@@ -40,9 +40,9 @@ function EditRow({
   children: ReactNode;
 }) {
   return (
-    <label className="grid grid-cols-[10rem_1fr] gap-3 border-b border-border/60 py-2.5 text-sm last:border-b-0">
-      <span className="pt-2 text-muted-foreground">{label}</span>
-      <div>
+    <label className="detail-row cursor-default">
+      <span className="detail-row-label pt-0 sm:pt-2">{label}</span>
+      <div className="min-w-0">
         {children}
         {error && <p className="mt-1 text-[11px] text-destructive">{error}</p>}
       </div>
@@ -72,7 +72,7 @@ function SectionCard({
 }) {
   return (
     <div className="rounded-xl border border-border bg-card">
-      <div className="flex items-center justify-between border-b border-border px-5 py-3">
+      <div className="flex flex-col gap-2 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
         <div className="font-display text-base">{title}</div>
         <div className="flex gap-1">
           {!editing ? (

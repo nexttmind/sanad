@@ -14,6 +14,14 @@ import {
 } from "@/lib/admin-users";
 import type { AppRole } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  AdminDesktopTable,
+  AdminMobileCard,
+  AdminMobileCardActions,
+  AdminMobileCardGrid,
+  AdminMobileCardHeader,
+  AdminMobileList,
+} from "@/components/admin/AdminMobileCard";
 
 export const Route = createFileRoute("/admin/users")({
   component: Users,
@@ -199,10 +207,11 @@ function Users() {
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-card">
-        <div className="border-b border-border px-5 py-3 text-xs text-muted-foreground">
+      <div className="rounded-xl border border-border bg-card">
+        <div className="border-b border-border px-4 py-3 text-xs text-muted-foreground sm:px-5">
           {loading ? "جارٍ التحميل..." : `${rows.length} مستخدم`}
         </div>
+        <AdminDesktopTable>
         <table className="w-full min-w-[640px] text-right text-sm">
           <thead>
             <tr className="border-b border-border bg-surface text-[11px] uppercase text-muted-foreground">
@@ -272,6 +281,52 @@ function Users() {
             )}
           </tbody>
         </table>
+        </AdminDesktopTable>
+
+        <AdminMobileList loading={loading} empty={!loading && rows.length === 0} emptyMessage="لا يوجد مستخدمون.">
+          {rows.map((u) => (
+            <AdminMobileCard key={`${u.user_id}-${u.role}`}>
+              <AdminMobileCardHeader
+                title={u.display_name}
+                mono={u.email}
+                badge={
+                  <span className="rounded-full bg-foreground/10 px-2 py-0.5 text-[10px]">
+                    {roleLabel(u.role)}
+                  </span>
+                }
+              />
+              <AdminMobileCardGrid
+                rows={[
+                  { label: "الحالة", value: u.is_active ? "نشط" : "معطّل" },
+                  { label: "آخر دخول", value: formatLastSignIn(u.last_sign_in_at) },
+                ]}
+              />
+              <AdminMobileCardActions>
+                <button
+                  type="button"
+                  disabled={busy || u.user_id === user?.id}
+                  onClick={() => void changeRole(u)}
+                  className="text-xs text-clay hover:underline disabled:opacity-50"
+                >
+                  تعديل الدور
+                </button>
+                {u.user_id !== user?.id && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void toggleActive(u)}
+                    className={[
+                      "text-xs hover:underline disabled:opacity-50",
+                      u.is_active ? "text-destructive" : "text-success",
+                    ].join(" ")}
+                  >
+                    {u.is_active ? "تعطيل" : "تفعيل"}
+                  </button>
+                )}
+              </AdminMobileCardActions>
+            </AdminMobileCard>
+          ))}
+        </AdminMobileList>
       </div>
     </div>
   );

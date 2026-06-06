@@ -1,8 +1,9 @@
 import { Link, Navigate, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, LogOut, Menu, X, Bell, Search } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import { adminRequestsSearchUrl } from "@/lib/admin-global-search";
 
 const navItems = [
   { to: "/admin", label: "نظرة عامة" },
@@ -16,6 +17,101 @@ const navItems = [
   { to: "/admin/users", label: "المستخدمون" },
   { to: "/admin/audit", label: "سجلّ التدقيق" },
 ];
+
+function AdminHeaderSearch() {
+  const navigate = useNavigate();
+  const path = useRouterState({ select: (s) => s.location.pathname });
+  const urlSearch = useRouterState({ select: (s) => s.location.search as Record<string, unknown> });
+  const [query, setQuery] = useState("");
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (path.startsWith("/admin/requests") && typeof urlSearch.q === "string") {
+      setQuery(urlSearch.q);
+    }
+  }, [path, urlSearch.q]);
+
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [path]);
+
+  useEffect(() => {
+    if (mobileOpen) {
+      const t = window.setTimeout(() => inputRef.current?.focus(), 50);
+      return () => window.clearTimeout(t);
+    }
+  }, [mobileOpen]);
+
+  const submit = () => {
+    const trimmed = query.trim();
+    if (!trimmed) return;
+    void navigate(adminRequestsSearchUrl(trimmed));
+    setMobileOpen(false);
+  };
+
+  const searchInput = (
+    <input
+      ref={inputRef}
+      value={query}
+      onChange={(e) => setQuery(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          submit();
+        }
+      }}
+      placeholder="بحث بالاسم، الرمز، أو الهاتف..."
+      className="w-full rounded-full border border-border bg-surface py-2 pe-3 ps-9 text-sm focus:border-clay focus:outline-none focus:ring-2 focus:ring-clay/20 md:pe-9 md:ps-3"
+      aria-label="بحث في الطلبات"
+    />
+  );
+
+  return (
+    <>
+      <div className="relative hidden md:block">
+        <Search className="absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              submit();
+            }
+          }}
+          placeholder="بحث في الطلبات..."
+          className="w-56 rounded-full border border-border bg-surface py-2 pe-9 ps-3 text-sm focus:border-clay focus:outline-none focus:ring-2 focus:ring-clay/20 lg:w-72"
+          aria-label="بحث في الطلبات"
+        />
+      </div>
+      <button
+        type="button"
+        onClick={() => setMobileOpen((v) => !v)}
+        className="grid h-9 w-9 place-items-center rounded-full border border-border bg-background hover:border-clay md:hidden"
+        aria-label={mobileOpen ? "إغلاق البحث" : "فتح البحث"}
+        aria-expanded={mobileOpen}
+      >
+        <Search className="h-4 w-4" />
+      </button>
+      {mobileOpen && (
+        <div className="fixed inset-x-0 top-14 z-30 border-b border-border bg-background/95 px-3 py-2 backdrop-blur sm:top-16 md:hidden">
+          <div className="relative flex items-center gap-2">
+            <Search className="pointer-events-none absolute right-3 h-3.5 w-3.5 text-muted-foreground" />
+            {searchInput}
+            <button
+              type="button"
+              onClick={submit}
+              className="shrink-0 rounded-full bg-primary px-4 py-2 text-xs text-primary-foreground hover:bg-primary/90"
+            >
+              بحث
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
 
 export function AdminShell() {
   const navigate = useNavigate();
@@ -162,7 +258,8 @@ export function AdminShell() {
 
       {/* MAIN COLUMN */}
       <div className={["transition-all", desktopOpen ? "lg:pr-64" : "lg:pr-16"].join(" ")}>
-        <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b border-border bg-background/85 px-3 backdrop-blur sm:h-16 sm:px-6 lg:px-10">
+        <header className="sticky top-0 z-20 border-b border-border bg-background/85 backdrop-blur">
+          <div className="flex h-14 items-center justify-between gap-2 px-3 sm:h-16 sm:px-6 lg:px-10">
           <div className="flex min-w-0 items-center gap-2">
             <button
               onClick={() => setMobileOpen(true)}
@@ -178,14 +275,8 @@ export function AdminShell() {
               <div className="truncate font-display text-sm sm:text-lg">{current.label}</div>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2 sm:gap-4">
-            <div className="relative hidden md:block">
-              <Search className="absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-              <input
-                placeholder="بحث..."
-                className="w-56 rounded-full border border-border bg-surface py-2 pe-9 ps-3 text-sm focus:border-clay focus:outline-none focus:ring-2 focus:ring-clay/20 lg:w-72"
-              />
-            </div>
+          <div className="relative flex shrink-0 items-center gap-2 sm:gap-4">
+            <AdminHeaderSearch />
             <button
               className="relative grid h-9 w-9 place-items-center rounded-full border border-border bg-background hover:border-clay"
               aria-label="إشعارات"
@@ -197,8 +288,9 @@ export function AdminShell() {
               {initials}
             </span>
           </div>
+          </div>
         </header>
-        <main className="px-3 py-4 sm:px-6 sm:py-8 lg:px-10">
+        <main className="px-3 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-8 lg:px-10">
           <Outlet />
         </main>
       </div>

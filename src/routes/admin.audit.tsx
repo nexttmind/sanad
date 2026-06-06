@@ -11,6 +11,13 @@ import {
   type AuditAction,
 } from "@/lib/audit-log";
 import { EDITABLE_FIELD_LABELS } from "@/lib/request-form-constants";
+import {
+  AdminDesktopTable,
+  AdminMobileCard,
+  AdminMobileCardGrid,
+  AdminMobileCardHeader,
+  AdminMobileList,
+} from "@/components/admin/AdminMobileCard";
 
 type AuditRow = Database["public"]["Tables"]["audit_log"]["Row"];
 type DbStatus = Database["public"]["Enums"]["request_status"];
@@ -263,7 +270,8 @@ function Audit() {
         </p>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+      <div className="rounded-xl border border-border bg-card">
+        <AdminDesktopTable>
         <table className="w-full min-w-[640px] text-right text-sm">
           <thead>
             <tr className="border-b border-border bg-surface text-[11px] uppercase text-muted-foreground">
@@ -313,6 +321,31 @@ function Audit() {
               ))}
           </tbody>
         </table>
+        </AdminDesktopTable>
+
+        <AdminMobileList
+          loading={loading}
+          empty={!loading && displayRows.length === 0}
+          emptyMessage="لا توجد سجلات بعد."
+        >
+          {displayRows.map((l) => (
+            <AdminMobileCard key={l.id}>
+              <AdminMobileCardHeader
+                title={l.action}
+                subtitle={l.who}
+                mono={l.target}
+              />
+              <AdminMobileCardGrid
+                rows={[
+                  { label: "قبل", value: l.before },
+                  { label: "بعد", value: l.after },
+                  { label: "IP", value: <span dir="ltr">{l.ip}</span> },
+                  { label: "الوقت", value: l.when },
+                ]}
+              />
+            </AdminMobileCard>
+          ))}
+        </AdminMobileList>
       </div>
     </div>
   );

@@ -77,9 +77,9 @@ export const Route = createFileRoute("/admin/requests/$id")({
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[10rem_1fr] gap-3 border-b border-border/60 py-2.5 text-sm last:border-b-0">
-      <div className="text-muted-foreground">{label}</div>
-      <div className="text-foreground">{value || "—"}</div>
+    <div className="detail-row">
+      <div className="detail-row-label">{label}</div>
+      <div className="detail-row-value">{value || "—"}</div>
     </div>
   );
 }
@@ -87,11 +87,11 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 function Card({ title, children, actions }: { title: string; children: React.ReactNode; actions?: React.ReactNode }) {
   return (
     <div className="rounded-xl border border-border bg-card">
-      <div className="flex items-center justify-between border-b border-border px-5 py-3">
+      <div className="flex flex-col gap-2 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
         <div className="font-display text-base">{title}</div>
         {actions}
       </div>
-      <div className="p-5">{children}</div>
+      <div className="p-4 sm:p-5">{children}</div>
     </div>
   );
 }
@@ -320,10 +320,10 @@ function Detail() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-6">
+      <div className="rounded-xl border border-border bg-card p-4 sm:p-6">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <div>
-            <h1 className="font-display text-3xl">{s.full_name}</h1>
+            <h1 className="font-display text-2xl sm:text-3xl">{s.full_name}</h1>
             <div dir="ltr" className="mt-1 font-mono text-sm text-muted-foreground">
               {s.reference_code} · قُدّم {timeAgo(s.created_at)}
             </div>

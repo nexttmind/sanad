@@ -161,11 +161,11 @@ function Overview() {
 
   return (
     <div className="space-y-10">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-8">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4 lg:grid-cols-8">
         {cards.map((c) => (
-          <div key={c.label} className="rounded-lg border border-border bg-card p-4">
-            <div className="text-[11px] text-muted-foreground">{c.label}</div>
-            <div className="mt-2 font-display text-2xl">{c.value.toLocaleString("ar-EG")}</div>
+          <div key={c.label} className="rounded-lg border border-border bg-card p-3 sm:p-4">
+            <div className="text-[10px] text-muted-foreground sm:text-[11px]">{c.label}</div>
+            <div className="mt-1.5 font-display text-xl sm:mt-2 sm:text-2xl">{c.value.toLocaleString("ar-EG")}</div>
           </div>
         ))}
       </div>
@@ -219,26 +219,31 @@ function Overview() {
                       <Link
                         to="/admin/requests/$id"
                         params={{ id: s.id }}
-                        className="flex items-center gap-4 px-5 py-3 text-sm transition hover:bg-surface"
+                        className="flex flex-col gap-1.5 px-4 py-3 text-sm transition hover:bg-surface sm:flex-row sm:items-center sm:gap-4 sm:px-5"
                       >
-                        <span className="font-mono text-[11px] text-muted-foreground">
-                          {formatQueueNumber(s.queue_number)}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate font-medium">{s.full_name}</div>
-                          <div className="truncate text-[11px] text-muted-foreground">{s.governorate ?? "—"}</div>
-                        </div>
-                        <span className={["font-mono text-xs", urgencyScoreColor(urg)].join(" ")}>{urg}</span>
-                        {s.urgency_tier && (
-                          <span
-                            className={[
-                              "rounded-full border px-2 py-0.5 text-[10px]",
-                              TIER_BADGE_CLASS[tierKey],
-                            ].join(" ")}
-                          >
-                            {TIER_LABELS[tierKey]}
+                        <div className="flex min-w-0 items-center gap-3 sm:flex-1">
+                          <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                            {formatQueueNumber(s.queue_number)}
                           </span>
-                        )}
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate font-medium">{s.full_name}</div>
+                            <div className="truncate text-[11px] text-muted-foreground">{s.governorate ?? "—"}</div>
+                          </div>
+                          <span className={["shrink-0 font-mono text-xs sm:hidden", urgencyScoreColor(urg)].join(" ")}>{urg}</span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 ps-8 text-xs sm:ps-0 sm:shrink-0">
+                          <span className={["hidden font-mono sm:inline", urgencyScoreColor(urg)].join(" ")}>{urg}</span>
+                          {s.urgency_tier && (
+                            <span
+                              className={[
+                                "hidden rounded-full border px-2 py-0.5 text-[10px] sm:inline",
+                                TIER_BADGE_CLASS[tierKey],
+                              ].join(" ")}
+                            >
+                              {TIER_LABELS[tierKey]}
+                            </span>
+                          )}
+                        </div>
                       </Link>
                     </li>
                   );
@@ -266,28 +271,28 @@ function Overview() {
                     <Link
                       to="/admin/requests/$id"
                       params={{ id: s.id }}
-                      className="grid grid-cols-12 gap-3 px-5 py-3 text-sm transition hover:bg-surface"
+                      className="flex flex-col gap-1.5 px-4 py-3 text-sm transition hover:bg-surface sm:flex-row sm:items-center sm:gap-3 sm:px-5"
                     >
-                      <div className="col-span-1 font-mono text-[10px] text-muted-foreground">
-                        {formatQueueNumber(s.queue_number)}
-                      </div>
-                      <div className="col-span-3 truncate">
-                        <div className="truncate font-medium">{s.full_name}</div>
-                        <div dir="ltr" className="truncate font-mono text-[10px] text-muted-foreground">
-                          {s.reference_code}
+                      <div className="flex min-w-0 items-start gap-3 sm:flex-1">
+                        <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                          {formatQueueNumber(s.queue_number)}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate font-medium">{s.full_name}</div>
+                          <div dir="ltr" className="truncate font-mono text-[10px] text-muted-foreground">
+                            {s.reference_code}
+                          </div>
                         </div>
                       </div>
-                      <div className="col-span-3 truncate text-muted-foreground">{s.governorate ?? "—"}</div>
-                      <div className="col-span-2">
-                        <span className="font-mono text-xs">ثقة {s.trust_score}</span>
-                      </div>
-                      <div className="col-span-2">
-                        <span className={["font-mono text-xs", urgencyScoreColor(urg)].join(" ")}>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 ps-8 text-xs sm:ps-0">
+                        <span className="text-muted-foreground">{s.governorate ?? "—"}</span>
+                        <span className="font-mono">ثقة {s.trust_score}</span>
+                        <span className={["font-mono", urgencyScoreColor(urg)].join(" ")}>
                           عجلة {urg}
                         </span>
-                      </div>
-                      <div className="col-span-1 text-left text-[10px] text-muted-foreground">
-                        {timeAgo(s.queued_at ?? s.created_at)}
+                        <span className="text-[10px] text-muted-foreground sm:ms-auto">
+                          {timeAgo(s.queued_at ?? s.created_at)}
+                        </span>
                       </div>
                     </Link>
                   </li>

@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 export function PublicFooter() {
   return (
     <footer className="border-t border-border bg-surface">
-      <div className="mx-auto grid max-w-7xl gap-10 px-6 py-14 lg:grid-cols-4 lg:px-10">
+      <div className="mx-auto grid max-w-7xl gap-10 px-5 py-12 sm:px-6 sm:py-14 lg:grid-cols-4 lg:px-10">
         <div className="lg:col-span-2">
           <div className="flex items-center gap-3">
             <span className="grid h-9 w-9 place-items-center rounded-full border border-foreground/20 bg-background font-display text-lg">س</span>
@@ -35,7 +35,7 @@ export function PublicFooter() {
         </div>
       </div>
       <div className="border-t border-border">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-6 py-5 text-xs text-muted-foreground lg:flex-row lg:px-10">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-5 py-5 text-xs text-muted-foreground sm:px-6 lg:flex-row lg:px-10">
           <div>© {new Date().getFullYear()} سند — جميع الحقوق محفوظة</div>
           <div className="font-mono uppercase tracking-[0.28em]">Built in Lebanon</div>
         </div>

@@ -196,8 +196,8 @@ function Success({ code, id, onReset }: { code: string; id: string; onReset: () 
 
       <div className="mx-auto mt-8 max-w-md rounded-2xl border border-border bg-card p-5 sm:p-6">
         <div className="text-[11px] uppercase tracking-wider text-muted-foreground">رقمك المرجعي</div>
-        <div className="mt-2 flex items-center justify-center gap-3">
-          <div dir="ltr" className="font-mono text-2xl text-foreground sm:text-3xl">{code}</div>
+        <div className="mt-2 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <div dir="ltr" className="font-mono text-xl text-foreground sm:text-3xl">{code}</div>
           <button
             onClick={() => { navigator.clipboard.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
             className="rounded-full border border-border px-3 py-1.5 text-xs hover:border-clay"
@@ -213,7 +213,7 @@ function Success({ code, id, onReset }: { code: string; id: string; onReset: () 
         {qrDataUrl && (
           <div className="mt-6 flex flex-col items-center gap-3">
             <div className="rounded-xl border border-border bg-white p-3">
-              <img src={qrDataUrl} alt={`رمز QR للطلب ${code}`} width={220} height={220} className="block" />
+              <img src={qrDataUrl} alt={`رمز QR للطلب ${code}`} width={220} height={220} className="block h-auto max-w-full" />
             </div>
             <p className="max-w-xs text-[11px] text-muted-foreground sm:text-xs">
               احفظ هذا الرمز. سيُطلب منك عرضه عند توزيع المساعدة لتأكيد هويتك.

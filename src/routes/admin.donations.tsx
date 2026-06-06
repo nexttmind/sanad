@@ -14,6 +14,14 @@ import {
   type DonationStatus,
 } from "@/lib/admin-donations";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  AdminDesktopTable,
+  AdminMobileCard,
+  AdminMobileCardActions,
+  AdminMobileCardGrid,
+  AdminMobileCardHeader,
+  AdminMobileList,
+} from "@/components/admin/AdminMobileCard";
 
 export const Route = createFileRoute("/admin/donations")({
   component: DonationsAdmin,
@@ -155,7 +163,7 @@ function DonationsAdmin() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="بحث برمز التبرّع أو اسم المتبرّع..."
-          className="min-w-[220px] flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+          className="w-full min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm sm:min-w-[220px]"
         />
         <select
           value={status}
@@ -175,7 +183,8 @@ function DonationsAdmin() {
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-border">
+      <div className="rounded-xl border border-border">
+        <AdminDesktopTable>
         <table className="w-full min-w-[880px] text-sm">
           <thead className="border-b border-border bg-surface/60 text-[11px] uppercase tracking-wider text-muted-foreground">
             <tr>
@@ -272,6 +281,73 @@ function DonationsAdmin() {
               ))}
           </tbody>
         </table>
+        </AdminDesktopTable>
+
+        <AdminMobileList
+          loading={loading}
+          empty={!loading && filtered.length === 0}
+          emptyMessage="لا توجد تبرّعات مطابقة."
+        >
+          {filtered.map((r) => (
+            <AdminMobileCard key={r.id}>
+              <AdminMobileCardHeader
+                title={donorDisplay(r)}
+                mono={r.reference_code}
+                badge={
+                  <span
+                    className={[
+                      "shrink-0 rounded-full border px-2 py-0.5 text-[10px]",
+                      DONATION_STATUS_COLOR[r.status],
+                    ].join(" ")}
+                  >
+                    {DONATION_STATUS_AR[r.status]}
+                  </span>
+                }
+              />
+              <AdminMobileCardGrid
+                rows={[
+                  { label: "التاريخ", value: formatWhen(r.created_at) },
+                  { label: "المبلغ", value: `$${Math.round(r.amount)} ${r.currency}` },
+                  { label: "الطريقة", value: methodLabel(r.method) },
+                  { label: "العائلة", value: r.pledged_request_code ?? "—" },
+                  { label: "الإثبات", value: r.proof ? "متوفّر" : "—" },
+                ]}
+              />
+              <AdminMobileCardActions>
+                {r.proof && (
+                  <button
+                    type="button"
+                    disabled={busyId === r.id}
+                    onClick={() => void handleProof(r)}
+                    className="text-xs text-clay hover:underline disabled:opacity-50"
+                  >
+                    عرض الإثبات
+                  </button>
+                )}
+                {r.status === "pending" && (
+                  <>
+                    <button
+                      type="button"
+                      disabled={busyId === r.id}
+                      onClick={() => void handleVerify(r)}
+                      className="rounded-md bg-success px-2.5 py-1 text-xs text-white hover:bg-success/90 disabled:opacity-50"
+                    >
+                      توثيق
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busyId === r.id}
+                      onClick={() => void handleReject(r)}
+                      className="rounded-md border border-destructive/40 px-2.5 py-1 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                    >
+                      رفض
+                    </button>
+                  </>
+                )}
+              </AdminMobileCardActions>
+            </AdminMobileCard>
+          ))}
+        </AdminMobileList>
       </div>
 
       {!loading && filtered.some((r) => r.message || r.internal_notes) && (

@@ -34,6 +34,15 @@ import {
   type UrgencyTier,
 } from "@/lib/scoring";
 import type { SavedView } from "@/lib/saved-views";
+import {
+  AdminDesktopTable,
+  AdminMobileCard,
+  AdminMobileCardActions,
+  AdminMobileCardGrid,
+  AdminMobileCardHeader,
+  AdminMobileCardLink,
+  AdminMobileList,
+} from "@/components/admin/AdminMobileCard";
 
 type Row = AidRowExtended;
 type DbStatus = Database["public"]["Enums"]["request_status"];
@@ -94,6 +103,7 @@ export const Route = createFileRoute("/admin/requests")({
   validateSearch: (search: Record<string, unknown>) => ({
     sort: typeof search.sort === "string" ? search.sort : undefined,
     dir: typeof search.dir === "string" ? search.dir : undefined,
+    q: typeof search.q === "string" ? search.q : undefined,
   }),
 });
 
@@ -192,6 +202,10 @@ function RequestsList() {
       fetchStaffMembers().then(setStaff).catch(() => setStaff([])),
     ]);
   }, []);
+
+  useEffect(() => {
+    if (search.q) setQ(search.q);
+  }, [search.q]);
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedQ(q.trim()), 300);
@@ -387,7 +401,7 @@ function RequestsList() {
               setHasFlags(false);
               setReferenceResult("all");
             }}
-            className="rounded-md border border-border px-4 py-2 text-sm hover:border-foreground/40"
+            className="w-full rounded-md border border-border px-4 py-2 text-sm hover:border-foreground/40 sm:w-auto"
           >
             إعادة تعيين
           </button>
@@ -598,8 +612,8 @@ function RequestsList() {
         )}
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-card">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-3 text-xs text-muted-foreground">
+      <div className="table-scroll overflow-x-auto rounded-xl border border-border bg-card">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3 text-xs text-muted-foreground sm:px-5">
           <div>{loading ? "جارٍ التحميل..." : `${totalCount.toLocaleString("ar-EG")} نتيجة`}</div>
           <div className="flex flex-wrap gap-1">
             {(Object.keys(SORT_FIELD_LABELS) as SortField[]).map((field) => (
@@ -620,7 +634,7 @@ function RequestsList() {
             ))}
           </div>
         </div>
-        <div className="overflow-x-auto">
+        <AdminDesktopTable>
           <table className="w-full min-w-[720px] text-right text-sm">
             <thead>
               <tr className="border-b border-border bg-surface text-[11px] uppercase text-muted-foreground">
@@ -757,7 +771,57 @@ function RequestsList() {
               )}
             </tbody>
           </table>
-        </div>
+        </AdminDesktopTable>
+
+        <AdminMobileList loading={loading} empty={!loading && rows.length === 0} emptyMessage="لا توجد طلبات.">
+          {rows.map((s) => {
+            const urg = displayUrgency(s);
+            const tierKey = (s.urgency_tier ?? "medium") as UrgencyTier;
+            return (
+              <AdminMobileCard key={s.id} className={s.flags.length ? "border-r-2 border-r-destructive" : ""}>
+                <AdminMobileCardHeader
+                  title={s.full_name}
+                  mono={`${s.reference_code} · ${s.phone}`}
+                  badge={
+                    <span
+                      className={[
+                        "shrink-0 rounded-full border px-2 py-0.5 text-[10px]",
+                        statusColor[s.status],
+                      ].join(" ")}
+                    >
+                      {STATUS_AR[s.status]}
+                    </span>
+                  }
+                />
+                <AdminMobileCardGrid
+                  rows={[
+                    { label: "الدور", value: formatQueueNumber(s.queue_number ?? null) },
+                    { label: "المنطقة", value: `${s.governorate ?? "—"}${s.town ? ` · ${s.town}` : ""}` },
+                    { label: "العائلة", value: `${s.family_size} فرد` },
+                    { label: "المراجع", value: s.assigned_to ? (staffNames[s.assigned_to] ?? "—") : "—" },
+                    { label: "الثقة", value: s.trust_score },
+                    {
+                      label: "العجلة",
+                      value: (
+                        <span className={urgencyScoreColor(urg)}>
+                          {urg}
+                          {s.urgency_tier ? ` · ${TIER_LABELS[tierKey]}` : ""}
+                        </span>
+                      ),
+                    },
+                    { label: "الوثائق", value: docStatusLabel(filesByRequest[s.id] ?? []) },
+                    { label: "الوقت", value: timeAgo(s.queued_at ?? s.created_at) },
+                  ]}
+                />
+                <AdminMobileCardActions>
+                  <AdminMobileCardLink to="/admin/requests/$id" params={{ id: s.id }}>
+                    عرض التفاصيل ←
+                  </AdminMobileCardLink>
+                </AdminMobileCardActions>
+              </AdminMobileCard>
+            );
+          })}
+        </AdminMobileList>
         {nextCursor && (
           <div className="border-t border-border p-4 text-center">
             <button
