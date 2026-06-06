@@ -1,0 +1,13 @@
+project_id = "lpdjtzwfxsjjudhxinmk"
+
+[functions.send-otp]
+verify_jwt = false
+
+[functions.admin-user-management]
+verify_jwt = true
+
+[functions.export-job-url]
+verify_jwt = false
+
+[functions.queue-integrity-check]
+verify_jwt = false

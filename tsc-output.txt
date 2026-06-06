@@ -1,0 +1,51 @@
+﻿src/components/admin/EditableRequestSections.tsx(480,35): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/components/admin/QueueIntegrityPanel.tsx(128,26): error TS2741: Property 'search' is missing in type '{ children: string; to: "/admin/requests/$id"; params: { id: string; }; className: string; }' but required in type 'MakeRequiredSearchParams<RouterCore<Route<Register, any, "/", "/", string, "__root__", undefined, {}, { queryClient: QueryClient; }, AnyContext, AnyContext, ... 6 more ..., undefined>, "never", false, RouterHistory, Record<...>>, string, "/admin/requests/$id">'.
+src/components/admin/QueueIntegrityPanel.tsx(169,32): error TS2741: Property 'search' is missing in type '{ children: string; to: "/admin/requests/$id"; params: { id: string; }; className: string; }' but required in type 'MakeRequiredSearchParams<RouterCore<Route<Register, any, "/", "/", string, "__root__", undefined, {}, { queryClient: QueryClient; }, AnyContext, AnyContext, ... 6 more ..., undefined>, "never", false, RouterHistory, Record<...>>, string, "/admin/requests/$id">'.
+src/components/admin/ScoringPreviewPanel.tsx(74,20): error TS2741: Property 'search' is missing in type '{ children: string; to: "/admin/requests/$id"; params: { id: string; }; className: string; }' but required in type 'MakeRequiredSearchParams<RouterCore<Route<Register, any, "/", "/", string, "__root__", undefined, {}, { queryClient: QueryClient; }, AnyContext, AnyContext, ... 6 more ..., undefined>, "never", false, RouterHistory, Record<...>>, string, "/admin/requests/$id">'.
+src/integrations/supabase/auth-middleware.ts(5,31): error TS2306: File 'C:/Users/bossm/Desktop/sanad-main/src/integrations/supabase/types.ts' is not a module.
+src/integrations/supabase/client.server.ts(6,31): error TS2306: File 'C:/Users/bossm/Desktop/sanad-main/src/integrations/supabase/types.ts' is not a module.
+src/integrations/supabase/client.ts(3,31): error TS2306: File 'C:/Users/bossm/Desktop/sanad-main/src/integrations/supabase/types.ts' is not a module.
+src/lib/__tests__/auth.test.ts(26,18): error TS2352: Conversion of type '{ email: string; user_metadata: { full_name: string; }; }' to type 'User' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ email: string; user_metadata: { full_name: string; }; }' is missing the following properties from type 'User': id, app_metadata, aud, created_at
+src/lib/__tests__/request-field-edit.test.ts(118,19): error TS2339: Property 'errors' does not exist on type 'UpdateRequestFieldsResult'.
+  Property 'errors' does not exist on type '{ ok: true; changed: string[]; }'.
+src/lib/__tests__/request-field-edit.test.ts(132,19): error TS2339: Property 'message' does not exist on type 'UpdateRequestFieldsResult'.
+  Property 'message' does not exist on type '{ ok: true; changed: string[]; }'.
+src/lib/__tests__/scoring-config.integration.test.ts(21,5): error TS2741: Property 'weights' is missing in type '{ max: number; }' but required in type 'CategoryRules'.
+src/lib/__tests__/scoring-config.integration.test.ts(22,5): error TS2741: Property 'weights' is missing in type '{ max: number; }' but required in type 'CategoryRules'.
+src/lib/admin-donations.ts(2,31): error TS2306: File 'C:/Users/bossm/Desktop/sanad-main/src/integrations/supabase/types.ts' is not a module.
+src/lib/admin-staff.ts(3,31): error TS2306: File 'C:/Users/bossm/Desktop/sanad-main/src/integrations/supabase/types.ts' is not a module.
+src/lib/admin-users.ts(3,31): error TS2306: File 'C:/Users/bossm/Desktop/sanad-main/src/integrations/supabase/types.ts' is not a module.
+src/lib/analytics.ts(2,31): error TS2306: File 'C:/Users/bossm/Desktop/sanad-main/src/integrations/supabase/types.ts' is not a module.
+src/lib/audit-log.ts(2,27): error TS2306: File 'C:/Users/bossm/Desktop/sanad-main/src/integrations/supabase/types.ts' is not a module.
+src/lib/auth.ts(4,31): error TS2306: File 'C:/Users/bossm/Desktop/sanad-main/src/integrations/supabase/types.ts' is not a module.
+src/lib/distribution.ts(3,31): error TS2306: File 'C:/Users/bossm/Desktop/sanad-main/src/integrations/supabase/types.ts' is not a module.
+src/lib/donations.ts(2,31): error TS2306: File 'C:/Users/bossm/Desktop/sanad-main/src/integrations/supabase/types.ts' is not a module.
+src/lib/mukhtar-whitelist.ts(2,31): error TS2306: File 'C:/Users/bossm/Desktop/sanad-main/src/integrations/supabase/types.ts' is not a module.
+src/lib/queue.ts(2,31): error TS2306: File 'C:/Users/bossm/Desktop/sanad-main/src/integrations/supabase/types.ts' is not a module.
+src/lib/request-detail-types.ts(1,31): error TS2306: File 'C:/Users/bossm/Desktop/sanad-main/src/integrations/supabase/types.ts' is not a module.
+src/lib/saved-views.ts(2,27): error TS2306: File 'C:/Users/bossm/Desktop/sanad-main/src/integrations/supabase/types.ts' is not a module.
+src/lib/scoring-config.ts(130,21): error TS18046: 'raw' is of type 'unknown'.
+src/lib/scoring-config.ts(130,48): error TS18046: 'raw' is of type 'unknown'.
+src/lib/scoring-config.ts(131,21): error TS18046: 'raw' is of type 'unknown'.
+src/lib/scoring-config.ts(131,48): error TS18046: 'raw' is of type 'unknown'.
+src/lib/scoring-config.ts(133,14): error TS18046: 'raw' is of type 'unknown'.
+src/lib/scoring-config.ts(134,11): error TS18046: 'raw' is of type 'unknown'.
+src/lib/submissions-list.ts(2,27): error TS2306: File 'C:/Users/bossm/Desktop/sanad-main/src/integrations/supabase/types.ts' is not a module.
+src/lib/track-request.ts(3,31): error TS2306: File 'C:/Users/bossm/Desktop/sanad-main/src/integrations/supabase/types.ts' is not a module.
+src/lib/urgency-history.ts(2,31): error TS2306: File 'C:/Users/bossm/Desktop/sanad-main/src/integrations/supabase/types.ts' is not a module.
+src/routes/admin.audit.tsx(4,31): error TS2306: File 'C:/Users/bossm/Desktop/sanad-main/src/integrations/supabase/types.ts' is not a module.
+src/routes/admin.distribution.tsx(370,18): error TS2741: Property 'search' is missing in type '{ children: string; to: "/admin/requests/$id"; params: { id: string; }; className: string; }' but required in type 'MakeRequiredSearchParams<RouterCore<Route<Register, any, "/", "/", string, "__root__", undefined, {}, { queryClient: QueryClient; }, AnyContext, AnyContext, ... 6 more ..., undefined>, "never", false, RouterHistory, Record<...>>, string, "/admin/requests/$id">'.
+src/routes/admin.index.tsx(12,12): error TS2304: Cannot find name 'Database'.
+src/routes/admin.index.tsx(133,40): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/routes/admin.index.tsx(218,24): error TS2741: Property 'search' is missing in type '{ children: any[]; to: "/admin/requests/$id"; params: { id: any; }; className: string; }' but required in type 'MakeRequiredSearchParams<RouterCore<Route<Register, any, "/", "/", string, "__root__", undefined, {}, { queryClient: QueryClient; }, AnyContext, AnyContext, ... 6 more ..., undefined>, "never", false, RouterHistory, Record<...>>, string, "/admin/requests/$id">'.
+src/routes/admin.index.tsx(265,22): error TS2741: Property 'search' is missing in type '{ children: Element[]; to: "/admin/requests/$id"; params: { id: any; }; className: string; }' but required in type 'MakeRequiredSearchParams<RouterCore<Route<Register, any, "/", "/", string, "__root__", undefined, {}, { queryClient: QueryClient; }, AnyContext, AnyContext, ... 6 more ..., undefined>, "never", false, RouterHistory, Record<...>>, string, "/admin/requests/$id">'.
+src/routes/admin.queue.tsx(257,24): error TS2741: Property 'search' is missing in type '{ children: string; to: "/admin/requests/$id"; params: { id: any; }; className: string; }' but required in type 'MakeRequiredSearchParams<RouterCore<Route<Register, any, "/", "/", string, "__root__", undefined, {}, { queryClient: QueryClient; }, AnyContext, AnyContext, ... 6 more ..., undefined>, "never", false, RouterHistory, Record<...>>, string, "/admin/requests/$id">'.
+src/routes/admin.requests.$id.tsx(4,31): error TS2306: File 'C:/Users/bossm/Desktop/sanad-main/src/integrations/supabase/types.ts' is not a module.
+src/routes/admin.requests.$id.tsx(242,10): error TS2741: Property 'search' is missing in type '{ children: string; to: "/admin/requests"; className: string; }' but required in type 'MakeRequiredSearchParams<RouterCore<Route<Register, any, "/", "/", string, "__root__", undefined, {}, { queryClient: QueryClient; }, AnyContext, AnyContext, ... 6 more ..., undefined>, "never", false, RouterHistory, Record<...>>, string, "/admin/requests">'.
+src/routes/admin.requests.$id.tsx(537,31): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/routes/admin.requests.tsx(4,31): error TS2306: File 'C:/Users/bossm/Desktop/sanad-main/src/integrations/supabase/types.ts' is not a module.
+src/routes/admin.requests.tsx(128,42): error TS2304: Cannot find name 'FilterTag'.
+src/routes/admin.requests.tsx(743,24): error TS2741: Property 'search' is missing in type '{ children: string; to: "/admin/requests/$id"; params: { id: any; }; className: string; }' but required in type 'MakeRequiredSearchParams<RouterCore<Route<Register, any, "/", "/", string, "__root__", undefined, {}, { queryClient: QueryClient; }, AnyContext, AnyContext, ... 6 more ..., undefined>, "never", false, RouterHistory, Record<...>>, string, "/admin/requests/$id">'.
+src/routes/donate.tsx(671,44): error TS2339: Property 'all' does not exist on type '() => Element'.
+src/routes/track.tsx(6,31): error TS2306: File 'C:/Users/bossm/Desktop/sanad-main/src/integrations/supabase/types.ts' is not a module.
