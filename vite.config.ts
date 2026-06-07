@@ -36,7 +36,14 @@ export default defineConfig({
         },
       },
     }),
-    netlify(),
+    netlify({
+      dev: {
+        // TanStack Start serves SSR from live src/ via Vite. Netlify's function
+        // handler would use pre-built dist/server and break HMR/CSS/asset sync.
+        functions: { enabled: false },
+        staticFiles: { enabled: false },
+      },
+    }),
     viteReact(),
   ],
 });

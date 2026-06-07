@@ -7,9 +7,18 @@ import { insertSubmissionReference } from "@/lib/submission-reference";
 import { submitAidRequest } from "@/lib/submit-aid-request";
 import { uploadIdDocument } from "@/lib/upload-id-doc";
 import { getDeviceFingerprint } from "@/lib/device-fingerprint";
-import { PhoneOtpSection } from "@/components/PhoneOtpSection";
 import { useDonationImpactStats, type DonationImpactStats } from "@/lib/donations";
-import { aidRequestHeroPhoto } from "@/lib/donate-photos";
+import { aidRequestHeroPhoto, sanadLogoPhoto } from "@/lib/donate-photos";
+import { getSubmissionStatus } from "@/lib/submission-status";
+import { precheckAidSubmission, type PrecheckReason } from "@/lib/precheck-aid-submission";
+import { validateAidRequestForm } from "@/lib/aid-request-validation";
+import {
+  DOC_TYPE_LABELS,
+  documentTypeFromLabel,
+  isLebanesePhone,
+} from "@/lib/phone-normalize";
+import { CapReachedMessage } from "@/components/CapReachedMessage";
+import { DuplicateSubmissionAlert } from "@/components/DuplicateSubmissionAlert";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -30,7 +39,7 @@ const NEEDS = [
 ];
 const REF_TYPES = ["مختار", "شيخ البلد", "رجل دين", "مسؤول بلدية", "طبيب معروف", "معلم أو مدير مدرسة", "مسؤول جمعية", "أخرى"];
 const KNOWN = ["أقل من سنة", "١–٥ سنوات", "أكثر من ٥ سنوات", "طوال عمري"];
-const DOC_TYPES = ["بطاقة الهوية اللبنانية", "جواز السفر", "وثيقة قيد عائلي", "إخراج قيد", "أخرى"];
+const DOC_TYPES = [DOC_TYPE_LABELS.lebanese_id, DOC_TYPE_LABELS.passport];
 const DIAPER_SIZES = ["NB", "١", "٢", "٣", "٤", "٥", "٦"];
 const MILK_BRANDS = ["Aptamil", "NAN", "Similac", "Enfamil", "أي ماركة متوفرة"];
 const MILK_STAGES = ["Stage 1 (٠–٦ أشهر)", "Stage 2 (٦–١٢ شهر)", "Stage 3 (١٢–٢٤ شهر)"];
@@ -45,17 +54,7 @@ const DEFAULT_STATS: DonationImpactStats = {
   avg_response_minutes: null,
 };
 
-/* ----------------------------- validation ----------------------------- */
-// Lebanese mobile: 03, 70, 71, 76, 78, 79, 81 + 6 digits. Accepts +961 or 0 prefix and spaces.
-function isLebPhone(v: string) {
-  const s = v.replace(/[\s\-]/g, "");
-  return /^(?:\+?961|0)?(3|70|71|76|78|79|81)\d{6}$/.test(s);
-}
-function isPastOrToday(d: string) {
-  if (!d) return false;
-  const t = new Date(d).getTime();
-  return !Number.isNaN(t) && t <= Date.now();
-}
+/* ----------------------------- validation helpers ----------------------------- */
 function monthsAgo(d: string) {
   const t = new Date(d).getTime();
   if (Number.isNaN(t)) return 0;
@@ -272,7 +271,14 @@ function RequestHome() {
   const [docFile, setDocFile] = useState<File | null>(null); const [docPreview, setDocPreview] = useState<string | null>(null);
   const [docError, setDocError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
-  const [phoneVerified, setPhoneVerified] = useState(false);
+  const [acceptingSubmissions, setAcceptingSubmissions] = useState<boolean | null>(null);
+  const [capMessage, setCapMessage] = useState<string | null>(null);
+  const [precheckBlocked, setPrecheckBlocked] = useState<{
+    reason: Extract<PrecheckReason, "phone_already_submitted" | "id_already_submitted">;
+    message: string;
+    reference_code?: string | null;
+  } | null>(null);
+  const [submitBlocked, setSubmitBlocked] = useState(false);
   const { data: publicStats = DEFAULT_STATS } = useDonationImpactStats();
 
   // -------- touched / submit-attempted
@@ -284,6 +290,62 @@ function RequestHome() {
   const showSchoolName = shelter === "مدرسة" || shelter === "مأوى جماعي";
   const toggleNeed = (n: string) => setNeeds((arr) => arr.includes(n) ? arr.filter((x) => x !== n) : [...arr, n]);
   const hasNeed = (n: string) => needs.includes(n);
+  const documentType = documentTypeFromLabel(docType);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getSubmissionStatus().then((result) => {
+      if (cancelled) return;
+      if (result.ok) {
+        setAcceptingSubmissions(result.status.accepting);
+        setCapMessage(result.status.message_ar ?? null);
+      } else {
+        setAcceptingSubmissions(true);
+      }
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!phone.trim() || !isLebanesePhone(phone)) {
+      setPrecheckBlocked(null);
+      setSubmitBlocked(false);
+      return;
+    }
+
+    const docReady = Boolean(documentType && docNumber.trim());
+    const timer = window.setTimeout(() => {
+      void precheckAidSubmission({
+        phone: phone.trim(),
+        ...(docReady
+          ? { national_id: docNumber.trim(), document_type: documentType }
+          : {}),
+      }).then((result) => {
+        if (!result.ok) return;
+        if (!result.allowed) {
+          if (
+            result.reason === "phone_already_submitted" ||
+            result.reason === "id_already_submitted"
+          ) {
+            setPrecheckBlocked({
+              reason: result.reason,
+              message: result.message,
+              reference_code: result.reference_code,
+            });
+            setSubmitBlocked(true);
+          } else {
+            setPrecheckBlocked(null);
+            setSubmitBlocked(false);
+          }
+          return;
+        }
+        setPrecheckBlocked(null);
+        setSubmitBlocked(false);
+      });
+    }, docReady ? 400 : 600);
+
+    return () => window.clearTimeout(timer);
+  }, [phone, docNumber, documentType, docType]);
 
   const heroStats = [
     { num: publicStats.requests_received, suffix: "", label: "طلب مستلم" },
@@ -308,62 +370,18 @@ function RequestHome() {
   };
 
   // -------- validation (computed)
-  const errors: Record<string, string | null> = {};
-  if (!first.trim()) errors.first = "يرجى إدخال الاسم الأول";
-  if (!father.trim()) errors.father = "يرجى إدخال اسم الأب";
-  if (!family.trim()) errors.family = "يرجى إدخال اسم العائلة";
-  if (!phone.trim()) errors.phone = "يرجى إدخال رقم الهاتف";
-  else if (!isLebPhone(phone)) errors.phone = "يرجى التحقق — رقم لبناني صحيح يبدأ بـ 03 أو 70 أو 71 أو 76 أو 78 أو 79 أو 81";
-  else if (!phoneVerified) errors.phoneOtp = "يرجى التحقق من رقم الهاتف برمز SMS";
-  if (phone2.trim() && !isLebPhone(phone2)) errors.phone2 = "يرجى التحقق من صيغة الرقم الثانوي";
-
-  const totalN = Number(total); const u12N = Number(u12); const u2N = Number(u2);
-  if (!total || totalN < 1) errors.total = "يرجى إدخال عدد أفراد العائلة";
-  if (u12 === "" || u12N < 0) errors.u12 = "يرجى إدخال عدد الأطفال (يمكن أن يكون صفراً)";
-  if (u2 === "" || u2N < 0) errors.u2 = "يرجى إدخال عدد الرضّع (يمكن أن يكون صفراً)";
-  if (u2 !== "" && u12 !== "" && u2N > u12N) errors.u2 = "يرجى التحقق — عدد الرضّع لا يمكن أن يتجاوز عدد الأطفال";
-
-  if (hasElderly && (!elderlyN || Number(elderlyN) < 1)) errors.elderlyN = "يرجى إدخال عدد كبار السن";
-  if (hasDisabled && disabledDesc.trim().length < 10) errors.disabledDesc = "يرجى توضيح نوع الإعاقة (١٠ أحرف على الأقل)";
-  if (hasChronic && chronicDesc.trim().length < 10) errors.chronicDesc = "يرجى توضيح المرض المزمن (١٠ أحرف على الأقل)";
-
-  if (displaced) {
-    if (!origin) errors.origin = "يرجى اختيار منطقة المنشأ";
-    if (!originVillage.trim()) errors.originVillage = "يرجى إدخال قرية المنشأ";
-    if (!currentLoc.trim()) errors.currentLoc = "يرجى إدخال الموقع الحالي";
-    if (!shelter) errors.shelter = "يرجى اختيار نوع المأوى";
-    if (showSchoolName && !shelterName.trim()) errors.shelterName = "يرجى إدخال اسم المدرسة أو المأوى";
-    if (!dispDate) errors.dispDate = "يرجى إدخال تاريخ النزوح";
-    else if (!isPastOrToday(dispDate)) errors.dispDate = "يرجى التحقق — تاريخ النزوح لا يمكن أن يكون في المستقبل";
-  }
-
-  if (needs.length === 0) errors.needs = "يرجى اختيار حاجة واحدة على الأقل";
-  if (hasNeed("حفاضات")) {
-    if (!diaperSize) errors.diaperSize = "يرجى اختيار قياس الحفاض";
-    if (!infantAge) errors.infantAge = "يرجى إدخال عمر الرضيع";
-  }
-  if (hasNeed("حليب أطفال")) {
-    if (!milkBrand) errors.milkBrand = "يرجى اختيار ماركة الحليب";
-    if (!milkStage) errors.milkStage = "يرجى اختيار المرحلة";
-    if (!milkAge) errors.milkAge = "يرجى إدخال عمر الرضيع";
-  }
-  if (hasNeed("أدوية") && meds.trim().length < 3) errors.meds = "يرجى ذكر اسم الدواء والجرعة";
-  if (hasNeed("مساعدة مالية") && !finPurpose) errors.finPurpose = "يرجى اختيار الغرض";
-  if (hasNeed("ملابس") && clothesDesc.trim().length < 5) errors.clothesDesc = "يرجى توضيح المقاسات والأعمار";
-  if (hasNeed("أخرى") && otherDesc.trim().length < 5) errors.otherDesc = "يرجى وصف الحاجة";
-
-  if (!refType) errors.refType = "يرجى اختيار نوع المرجع";
-  if (!refName.trim()) errors.refName = "يرجى إدخال اسم المرجع";
-  if (!refPhone.trim()) errors.refPhone = "يرجى إدخال رقم هاتف المرجع";
-  else if (!isLebPhone(refPhone)) errors.refPhone = "يرجى التحقق من صيغة الرقم";
-  if (!refRegion.trim()) errors.refRegion = "يرجى إدخال منطقة المرجع";
-  if (!refKnown) errors.refKnown = "يرجى تحديد منذ متى تعرفه";
-
-  if (!docType) errors.docType = "يرجى اختيار نوع الوثيقة";
-  if (!docNumber.trim()) errors.docNumber = "يرجى إدخال رقم الوثيقة";
-  if (!docFile) errors.docFile = "يرجى رفع صورة الوثيقة";
+  const errors = validateAidRequestForm({
+    first, father, family, phone, phone2, total, u12, u2,
+    hasElderly, elderlyN, hasDisabled, disabledDesc, hasChronic, chronicDesc,
+    critical, pregnantOrNursing, displaced, origin, originVillage, currentLoc,
+    shelter, shelterName, showSchoolName, dispDate, needs, hasNeed,
+    diaperSize, infantAge, milkBrand, milkStage, milkAge, meds, finPurpose,
+    clothesDesc, otherDesc, refType, refName, refPhone, refRegion, refKnown,
+    docTypeLabel: docType, docNumber, docFile,
+  });
 
   const isValid = Object.keys(errors).length === 0;
+  const u2N = Number(u2);
 
   // -------- soft warnings (not blocking)
   const warnings: string[] = [];
@@ -380,7 +398,7 @@ function RequestHome() {
     e.preventDefault();
     setAttempted(true);
     setSubmitError(null);
-    if (!isValid) {
+    if (!isValid || submitBlocked) {
       const firstKey = Object.keys(errors)[0];
       const el = formRef.current?.querySelector(`[data-err="${firstKey}"]`) as HTMLElement | null;
       el?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -408,7 +426,8 @@ function RequestHome() {
         full_name: fullName,
         phone: phone.trim(),
         alt_phone: phone2.trim() || null,
-        national_id: docNumber.trim() || null,
+        national_id: docNumber.trim(),
+        document_type: documentType!,
         governorate: origin || null,
         district: refRegion || null,
         town: originVillage || currentLoc || null,
@@ -440,6 +459,17 @@ function RequestHome() {
 
       const submitResult = await submitAidRequest(payload);
       if (!submitResult.ok) {
+        if (
+          submitResult.reason === "phone_already_submitted" ||
+          submitResult.reason === "id_already_submitted"
+        ) {
+          setPrecheckBlocked({
+            reason: submitResult.reason,
+            message: submitResult.message,
+            reference_code: submitResult.reference_code,
+          });
+          setSubmitBlocked(true);
+        }
         setSubmitError(submitResult.message);
         return;
       }
@@ -483,25 +513,45 @@ function RequestHome() {
     );
   }
 
+  if (acceptingSubmissions === false) {
+    return (
+      <main className="min-h-screen bg-background">
+        <PublicNav />
+        <div className="pt-24">
+          <CapReachedMessage message={capMessage} />
+        </div>
+        <PublicFooter />
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-background">
-      <PublicNav />
+      <PublicNav tone="dark" greenMobileMenu />
 
       {/* HERO — cinematic, logo-led */}
       <section className="relative isolate overflow-hidden bg-ink text-white">
         <div className="absolute inset-0">
-          <img src={aidRequestHeroPhoto} alt="" className="kb-2 h-full w-full object-cover opacity-55" />
+          <img
+            src={aidRequestHeroPhoto}
+            alt=""
+            className="kb-hero-fit h-full w-full origin-center object-cover object-center opacity-55"
+          />
           <div className="absolute inset-0 bg-gradient-to-b from-ink/40 via-ink/70 to-background" />
           <div className="absolute inset-0 grain" />
         </div>
 
         <div className="relative mx-auto max-w-6xl px-5 pb-16 pt-28 sm:px-6 sm:pb-24 sm:pt-32 lg:px-10">
           <div className="fade-soft flex flex-col items-center text-center">
-            {/* Logo mark */}
+            {/* Logo mark — full SANAD logo scaled to fit the circle */}
             <div className="relative">
-              <div className="absolute inset-0 -m-2 rounded-full bg-clay/30 blur-2xl" />
-              <div className="relative grid h-20 w-20 place-items-center rounded-full border border-white/30 bg-white/10 backdrop-blur-md sm:h-24 sm:w-24">
-                <span className="font-display text-3xl text-white sm:text-4xl">س</span>
+              <div className="absolute inset-0 -m-3 rounded-full bg-primary/25 blur-2xl" />
+              <div className="relative flex h-[5.25rem] w-[5.25rem] items-center justify-center overflow-hidden rounded-full border border-white/40 bg-white/95 p-1.5 shadow-lg sm:h-24 sm:w-24 sm:p-2">
+                <img
+                  src={sanadLogoPhoto}
+                  alt="شعار حملة سند"
+                  className="h-full w-full scale-[1.18] object-contain"
+                />
               </div>
             </div>
             <div className="mt-4 font-mono text-[10px] uppercase tracking-[0.55em] text-white/70 sm:text-[11px]">
@@ -572,15 +622,15 @@ function RequestHome() {
               <Field label="رقم الهاتف الأساسي" required hint="سنتواصل معك على هذا الرقم" error={show("phone") ? errors.phone : null}>
                 <input dir="ltr" inputMode="tel" autoComplete="tel" className={cls(!!(show("phone") && errors.phone))} placeholder="+961 71 234 567" value={phone} onChange={(e) => setPhone(e.target.value)} onBlur={touch("phone")} />
               </Field>
-              <div className="mt-3" data-err="phoneOtp">
-                <PhoneOtpSection
-                  phone={phone}
-                  enabled={Boolean(phone.trim() && isLebPhone(phone))}
-                  verified={phoneVerified}
-                  onVerifiedChange={setPhoneVerified}
-                  error={show("phoneOtp") ? errors.phoneOtp : null}
-                />
-              </div>
+              {precheckBlocked && (
+                <div className="mt-3">
+                  <DuplicateSubmissionAlert
+                    reason={precheckBlocked.reason}
+                    message={precheckBlocked.message}
+                    referenceCode={precheckBlocked.reference_code}
+                  />
+                </div>
+              )}
             </div>
             <div data-err="phone2">
               <Field label="رقم الهاتف الثانوي" hint="اختياري" error={show("phone2") ? errors.phone2 : null}>
@@ -941,7 +991,7 @@ function RequestHome() {
 
           <button
             type="submit"
-            disabled={!confirmed || submitting}
+            disabled={!confirmed || submitting || submitBlocked}
             className="mt-5 w-full rounded-full bg-primary px-6 py-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitting ? "جارٍ الإرسال..." : "تقديم الطلب"}

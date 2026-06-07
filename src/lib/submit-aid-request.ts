@@ -1,11 +1,13 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import type { DocumentType } from "@/lib/phone-normalize";
 
 export type AidRequestSubmitPayload = {
   full_name: string;
   phone: string;
   alt_phone?: string | null;
   national_id?: string | null;
+  document_type: DocumentType;
   governorate?: string | null;
   district?: string | null;
   town?: string | null;
@@ -29,9 +31,20 @@ export type AidRequestSubmitPayload = {
   device_fingerprint?: string | null;
 };
 
+export type SubmitBlockReason =
+  | "phone_already_submitted"
+  | "id_already_submitted"
+  | "daily_cap_reached";
+
 export type AidRequestSubmitResult =
   | { ok: true; id: string; reference_code: string }
-  | { ok: false; message: string };
+  | {
+      ok: false;
+      message: string;
+      reason?: SubmitBlockReason;
+      reference_code?: string;
+      errors?: Record<string, string>;
+    };
 
 /** Server-side aid request insert with ip_hash capture (Step 3.1). */
 export async function submitAidRequest(
@@ -46,6 +59,8 @@ export async function submitAidRequest(
     message?: string;
     id?: string;
     reference_code?: string;
+    reason?: SubmitBlockReason;
+    errors?: Record<string, string>;
   }>("submit-aid-request", {
     body: {
       ...payload,
@@ -64,8 +79,18 @@ export async function submitAidRequest(
     return { ok: false, message: "تعذّر إرسال الطلب." };
   }
 
+  if (data?.errors && Object.keys(data.errors).length > 0) {
+    const first = Object.values(data.errors)[0];
+    return { ok: false, message: first ?? "يرجى التحقق من الحقول.", errors: data.errors };
+  }
+
   if (!data?.ok || !data.id || !data.reference_code) {
-    return { ok: false, message: data?.message ?? "تعذّر إرسال الطلب." };
+    return {
+      ok: false,
+      message: data?.message ?? "تعذّر إرسال الطلب.",
+      reason: data?.reason,
+      reference_code: data?.reference_code,
+    };
   }
 
   return { ok: true, id: data.id, reference_code: data.reference_code };

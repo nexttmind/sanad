@@ -7,9 +7,17 @@ const links = [
   { to: "/track", label: "تتبّع طلبك" },
 ];
 
-export function PublicNav({ tone = "light" }: { tone?: "light" | "dark" }) {
+export function PublicNav({
+  tone = "light",
+  greenMobileMenu = false,
+}: {
+  tone?: "light" | "dark" | "hero";
+  greenMobileMenu?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const isDark = tone === "dark";
+  const isHero = tone === "hero";
+  const greenMenu = greenMobileMenu || isHero;
 
   // lock scroll while menu open
   useEffect(() => {
@@ -20,20 +28,43 @@ export function PublicNav({ tone = "light" }: { tone?: "light" | "dark" }) {
     }
   }, [open]);
 
+  const headerText = isHero ? "text-primary" : isDark ? "text-white" : "text-foreground";
+  const logoBorder = isHero
+    ? "border-primary/40 bg-primary/10"
+    : isDark
+      ? "border-white/30 bg-white/5"
+      : "border-foreground/20 bg-background/60";
+  const subtitleText = isHero
+    ? "text-primary/75"
+    : isDark
+      ? "text-white/60"
+      : "text-muted-foreground";
+  const linkText = isHero ? "text-white/90" : isDark ? "text-white/90" : "text-foreground/80";
+  const donateBtn = isHero
+    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+    : isDark
+      ? "bg-white text-ink hover:bg-white/90"
+      : "bg-primary text-primary-foreground hover:bg-primary/90";
+
+  const mobileMenuBtn = open
+    ? "text-foreground"
+    : greenMenu
+      ? "text-primary"
+      : isDark
+        ? "text-white"
+        : "text-foreground";
+
   return (
-    <header className={["absolute inset-x-0 top-0 z-50", isDark ? "text-white" : "text-foreground"].join(" ")}>
+    <header className={["absolute inset-x-0 top-0 z-50", headerText].join(" ")}>
       <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-6 sm:py-6 lg:px-10">
         <Link to="/" className="flex items-center gap-3" onClick={() => setOpen(false)}>
           <span
-            className={[
-              "grid h-9 w-9 place-items-center rounded-full border font-display text-lg",
-              isDark ? "border-white/30 bg-white/5" : "border-foreground/20 bg-background/60",
-            ].join(" ")}
+            className={["grid h-9 w-9 place-items-center rounded-full border font-display text-lg", logoBorder].join(" ")}
             aria-hidden
           >س</span>
           <div className="leading-tight">
             <div className="font-display text-lg tracking-tight">سند</div>
-            <div className={["text-[10px] uppercase tracking-[0.32em]", isDark ? "text-white/60" : "text-muted-foreground"].join(" ")}>
+            <div className={["text-[10px] uppercase tracking-[0.32em]", subtitleText].join(" ")}>
               SANAD
             </div>
           </div>
@@ -45,7 +76,7 @@ export function PublicNav({ tone = "light" }: { tone?: "light" | "dark" }) {
               key={l.to}
               to={l.to}
               activeOptions={{ exact: true }}
-              className={["text-sm transition hover:opacity-80", isDark ? "text-white/90" : "text-foreground/80"].join(" ")}
+              className={["text-sm transition hover:opacity-80", linkText].join(" ")}
               activeProps={{ className: "opacity-100 font-medium" }}
             >
               {l.label}
@@ -53,10 +84,7 @@ export function PublicNav({ tone = "light" }: { tone?: "light" | "dark" }) {
           ))}
           <Link
             to="/donate"
-            className={[
-              "rounded-full px-5 py-2 text-sm transition",
-              isDark ? "bg-white text-ink hover:bg-white/90" : "bg-primary text-primary-foreground hover:bg-primary/90",
-            ].join(" ")}
+            className={["rounded-full px-5 py-2 text-sm transition", donateBtn].join(" ")}
           >
             تبرّع الآن
           </Link>
@@ -66,7 +94,7 @@ export function PublicNav({ tone = "light" }: { tone?: "light" | "dark" }) {
         <button
           className={[
             "relative z-50 grid h-10 w-10 place-items-center md:hidden",
-            open ? "text-foreground" : isDark ? "text-white" : "text-foreground",
+            mobileMenuBtn,
           ].join(" ")}
           onClick={() => setOpen((v) => !v)}
           aria-label={open ? "إغلاق القائمة" : "فتح القائمة"}

@@ -1,0 +1,25 @@
+﻿---
+description: Require file specs and user alignment before implementing changes
+alwaysApply: true
+---
+
+# Implementation alignment — spec first, grill always
+
+When implementing features (especially multi-file work like migrations, edge functions, and UI):
+
+## Before editing ANY file
+
+1. **Read the file spec** in the active PRD (`md files/prd-phone-uniqueness-daily-cap.md`) for that path.
+2. **State the spec** in one short paragraph: purpose, inputs/outputs, must-nots.
+3. **Grill the user** — ask 1–3 targeted questions if anything is ambiguous.
+4. **Wait for confirmation** before writing code, unless the user said "execute the plan" and the PRD locks that decision.
+
+## During implementation
+
+- One phase or one logical file group at a time; mark PRD checkboxes when done.
+- Match existing conventions (React, SANAD tokens, supabase.functions.invoke).
+
+## After each phase
+
+- Summarize changes and smoke-test steps.
+- Confirm next phase spec before continuing.

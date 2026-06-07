@@ -1,4 +1,24 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+
+// --- inlined helpers (Dashboard deploy = single file only) ---
+function normalizeLebanesePhone(raw: string | null | undefined): string | null {
+  if (!raw || !String(raw).trim()) return null;
+  const digits = String(raw).replace(/\D/g, "");
+  if (!digits) return null;
+  if (digits.startsWith("961")) return digits;
+  if (digits.startsWith("0")) return `961${digits.slice(1)}`;
+  return `961${digits}`;
+}
+
+function hashIdentifier(value: string): string {
+  let h = 0;
+  for (let i = 0; i < value.length; i++) {
+    h = (h << 5) - h + value.charCodeAt(i);
+    h |= 0;
+  }
+  return `ip_${Math.abs(h)}`;
+}
+
 const DEFAULT_ALLOWED = ["http://localhost:5173", "http://localhost:3000"];
 const BASE_ALLOW_HEADERS = "authorization, x-client-info, apikey, content-type";
 
@@ -97,7 +117,7 @@ Deno.serve(async (req) => {
 
     const admin = createClient(supabaseUrl, serviceKey);
     const ipHash = hashIdentifier(req.headers.get("x-forwarded-for") ?? "unknown");
-    const phoneNormalized = normalizePhone(phone);
+    const phoneNormalized = normalizeLebanesePhone(phone) ?? "";
 
     const rateBlocked = await assertTrackRateLimits(admin, ipHash, phoneNormalized);
     if (rateBlocked) {
@@ -193,21 +213,5 @@ async function assertTrackRateLimits(
   }
 
   return null;
-}
-
-function normalizePhone(raw: string): string {
-  const digits = raw.replace(/\D/g, "");
-  if (digits.startsWith("961")) return digits;
-  if (digits.startsWith("0")) return `961${digits.slice(1)}`;
-  return digits;
-}
-
-function hashIdentifier(value: string): string {
-  let h = 0;
-  for (let i = 0; i < value.length; i++) {
-    h = (h << 5) - h + value.charCodeAt(i);
-    h |= 0;
-  }
-  return `ip_${Math.abs(h)}`;
 }
 

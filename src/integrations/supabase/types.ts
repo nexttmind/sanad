@@ -180,6 +180,9 @@ export type Database = {
           phone: string;
           alt_phone: string | null;
           national_id: string | null;
+          phone_normalized: string | null;
+          national_id_normalized: string | null;
+          document_type: string | null;
           governorate: string | null;
           district: string | null;
           town: string | null;
@@ -236,6 +239,9 @@ export type Database = {
           phone: string;
           alt_phone?: string | null;
           national_id?: string | null;
+          phone_normalized?: string | null;
+          national_id_normalized?: string | null;
+          document_type?: string | null;
           governorate?: string | null;
           district?: string | null;
           town?: string | null;
@@ -292,6 +298,9 @@ export type Database = {
           phone?: string;
           alt_phone?: string | null;
           national_id?: string | null;
+          phone_normalized?: string | null;
+          national_id_normalized?: string | null;
+          document_type?: string | null;
           governorate?: string | null;
           district?: string | null;
           town?: string | null;
@@ -1116,6 +1125,10 @@ export type Database = {
         Args: Record<string, never>;
         Returns: Json;
       };
+      check_submission_eligibility: {
+        Args: { _phone: string; _national_id: string };
+        Returns: Json;
+      };
       check_rate_limit: {
         Args: {
           _identifier: string;
@@ -1155,6 +1168,10 @@ export type Database = {
       };
       get_scoring_preview_samples: {
         Args: { _limit?: number };
+        Returns: Json;
+      };
+      get_submission_status: {
+        Args: Record<string, never>;
         Returns: Json;
       };
       is_staff: {

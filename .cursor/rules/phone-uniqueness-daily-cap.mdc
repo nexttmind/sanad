@@ -1,0 +1,21 @@
+﻿---
+description: Phone + national ID uniqueness and daily cap (no OTP)
+globs: supabase/migrations/*phone*.sql,supabase/migrations/*uniqueness*.sql,supabase/functions/submit-aid-request/**,supabase/functions/submission-status/**,supabase/functions/precheck-aid-submission/**,src/routes/index.tsx,src/routes/track.tsx,src/lib/phone-normalize.ts,src/lib/submission-status.ts,src/lib/precheck-aid-submission.ts,src/lib/submit-aid-request.ts,src/components/CapReachedMessage.tsx,src/components/DuplicateSubmissionAlert.tsx
+alwaysApply: false
+---
+
+# Phone + national ID uniqueness + daily cap (no OTP)
+
+**PRD:** `md files/prd-phone-uniqueness-daily-cap.md`
+
+## Policy
+
+- One submission ever per normalized Lebanese phone and per normalized national_id.
+- 50 submissions per Asia/Beirut day; full-page form close when cap hit.
+- No OTP. No device/IP uniqueness.
+
+## Before editing
+
+1. Read PRD file spec for this path.
+2. Grill user on open questions.
+3. Implement only after confirmation.

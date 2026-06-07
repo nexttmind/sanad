@@ -1,5 +1,8 @@
 /** Single field photo — used on the public aid-request page hero only. */
 import aidRequestHeroPhoto from "@/assets/photos and proofs/WhatsApp Image 2026-06-02 at 3.57.56 PM (1).jpeg";
+import sanadLogoPhoto from "@/assets/photos and proofs/sanad-logo.png.jpeg";
+
+export { aidRequestHeroPhoto, sanadLogoPhoto };
 
 import p01 from "@/assets/photos and proofs/WhatsApp Image 2026-06-02 at 1.56.50 PM.jpeg";
 import p02 from "@/assets/photos and proofs/WhatsApp Image 2026-06-02 at 1.56.55 PM.jpeg";
@@ -31,8 +34,6 @@ import p27 from "@/assets/photos and proofs/WhatsApp Image 2026-06-02 at 3.57.57
 import p28 from "@/assets/photos and proofs/WhatsApp Image 2026-06-02 at 3.57.57 PM (1).jpeg";
 import p29 from "@/assets/photos and proofs/WhatsApp Image 2026-06-02 at 3.57.57 PM (2).jpeg";
 import p30 from "@/assets/photos and proofs/WhatsApp Image 2026-06-02 at 3.57.57 PM (3).jpeg";
-
-export { aidRequestHeroPhoto };
 
 export type DonationJourneyPhoto = { src: string; caption: string };
 export type DonationJourneyStage = {

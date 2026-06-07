@@ -35,7 +35,10 @@ The claim_first_admin RPC exists to bootstrap the first admin account — docume
 
 ## Feature 2 — OTP Phone Verification
 
-### What needs to exist
+> **SUPERSEDED** — See [`prd-phone-uniqueness-daily-cap.md`](./prd-phone-uniqueness-daily-cap.md).  
+> OTP is **removed**. Phone uniqueness + 50/day cap replace SMS verification. Do not implement this feature.
+
+### What needs to exist (historical — do not build)
 
 A step in the public form that appears after the user enters their primary phone number.
 A send OTP button that triggers an SMS to the entered number.

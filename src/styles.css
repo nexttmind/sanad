@@ -1,5 +1,5 @@
 @import "tailwindcss" source(none);
-@source "../src";
+@source "./";
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
@@ -190,6 +190,16 @@
 .kb-2 { animation: kenburns-2 12s ease-in-out forwards; }
 .kb-3 { animation: kenburns-3 12s ease-in-out forwards; }
 .kb-4 { animation: kenburns-4 12s ease-in-out forwards; }
+
+/* Hero: show full frame at scale 1, then begin slow zoom */
+@keyframes kenburns-hero {
+  0%   { transform: scale(1) translate3d(0, 0, 0); }
+  100% { transform: scale(1.14) translate3d(1%, -0.5%, 0); }
+}
+.kb-hero-fit {
+  transform-origin: center center;
+  animation: kenburns-hero 14s ease-in-out 0.6s forwards;
+}
 
 @keyframes fade-soft {
   from { opacity: 0; }

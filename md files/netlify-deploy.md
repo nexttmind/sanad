@@ -14,6 +14,12 @@ This project uses **TanStack Start** (server-side rendering). Netlify runs the a
 
 ---
 
+## Local development
+
+See [dev-workflow.md](./dev-workflow.md) for `npm run dev` (live SSR/HMR) vs production build.
+
+---
+
 ## One-time Netlify setup
 
 ### 1. Push code to GitHub

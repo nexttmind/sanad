@@ -21,5 +21,11 @@ verify_jwt = false
 [functions.submit-aid-request]
 verify_jwt = false
 
+[functions.submission-status]
+verify_jwt = false
+
+[functions.precheck-aid-submission]
+verify_jwt = false
+
 [functions.upload-id-doc]
 verify_jwt = false
