@@ -142,7 +142,7 @@ async function assertPrecheckRateLimits(
     });
     if (error) {
       console.error("[precheck-aid-submission] check_rate_limit:", error);
-      throw error;
+      return null;
     }
     const row = (data ?? {}) as RateLimitRow;
     if (row.allowed === false) {

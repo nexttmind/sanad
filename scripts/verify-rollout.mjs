@@ -90,6 +90,13 @@ for (const name of ["submission-status", "precheck-aid-submission", "submit-aid-
       if (res.status === 401) {
         throw new Error(`401 — turn OFF "Verify JWT" for ${name} in Dashboard`);
       }
+      if (res.status === 504 || res.status === 546) {
+        throw new Error(
+          `${res.status} ${text} — edge worker timeout/resource limit on ${name}. ` +
+            `Redeploy the function (paste index.ts only), wait 1 min, retry. ` +
+            `If after smoke tests: Supabase may need a minute to recover workers.`,
+        );
+      }
       if (res.status >= 500) throw new Error(`${res.status} ${text}`);
       return { status: res.status, body };
     })

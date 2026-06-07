@@ -212,7 +212,7 @@ async function assertSubmitRateLimits(
     });
     if (error) {
       console.error("[submit-aid-request] check_rate_limit:", error);
-      throw error;
+      return null;
     }
     const row = (data ?? {}) as RateLimitRow;
     if (row.allowed === false) {
@@ -227,17 +227,6 @@ async function assertSubmitRateLimits(
     };
   }
   return null;
-}
-
-function scheduleScoreRecalc(
-  admin: ReturnType<typeof createClient>,
-  requestId: string,
-): void {
-  admin.rpc("calculate_scores", { _request_id: requestId, _triggered_by: "system" }).then(({ error }) => {
-    if (error) console.error("[submit-aid-request] deferred calculate_scores:", error);
-  }).catch((err) => {
-    console.error("[submit-aid-request] deferred calculate_scores:", err);
-  });
 }
 
 Deno.serve(async (req) => {
@@ -374,8 +363,6 @@ Deno.serve(async (req) => {
     if (!data) {
       return jsonWithCors(req, { ok: false, message: "تعذّر إرسال الطلب." }, 500);
     }
-
-    scheduleScoreRecalc(admin, data.id);
 
     return jsonWithCors(req, { ok: true, id: data.id, reference_code: data.reference_code }, 200);
   } catch (err) {

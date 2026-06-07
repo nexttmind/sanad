@@ -1,5 +1,4 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
 import type { DocumentType } from "@/lib/phone-normalize";
 
 export type AidRequestSubmitPayload = {
@@ -47,6 +46,8 @@ export type AidRequestSubmitResult =
     };
 
 /** Server-side aid request insert with ip_hash capture (Step 3.1). */
+const SUBMIT_TIMEOUT_MS = 45_000;
+
 export async function submitAidRequest(
   payload: AidRequestSubmitPayload,
 ): Promise<AidRequestSubmitResult> {
@@ -54,25 +55,33 @@ export async function submitAidRequest(
     return { ok: false, message: "invalid request" };
   }
 
-  const { data, error } = await supabase.functions.invoke<{
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<{ data: null; error: Error }>((resolve) => {
+    timeoutId = setTimeout(
+      () => resolve({ data: null, error: new Error("submit timeout") }),
+      SUBMIT_TIMEOUT_MS,
+    );
+  });
+
+  const invokePromise = supabase.functions.invoke<{
     ok?: boolean;
     message?: string;
     id?: string;
     reference_code?: string;
     reason?: SubmitBlockReason;
     errors?: Record<string, string>;
-  }>("submit-aid-request", {
-    body: {
-      ...payload,
-      status: "submitted" satisfies Database["public"]["Enums"]["request_status"],
-      trust_score: 50,
-      urgency_score: 50,
-      risk_level: "medium" satisfies Database["public"]["Enums"]["risk_level"],
-      priority_override: false,
-      is_duplicate: false,
-      flags: [] as string[],
-    },
+  }>("submit-aid-request", { body: payload });
+
+  const { data, error } = await Promise.race([invokePromise, timeoutPromise]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId);
   });
+
+  if (error?.message === "submit timeout") {
+    return {
+      ok: false,
+      message: "استغرق الطلب وقتاً طويلاً — يرجى المحاولة مرة أخرى بعد دقيقة.",
+    };
+  }
 
   if (error) {
     if (import.meta.env.DEV) console.error("[SubmitAidRequest] proxy invoke failed:", error);
