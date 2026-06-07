@@ -17,10 +17,24 @@ export function getAllowedOrigins(): string[] {
   return [...new Set([...DEFAULT_ALLOWED, ...fromEnv])];
 }
 
+/** Netlify production + branch/preview deploys for SANAD. */
+export function isNetlifySanadOrigin(origin: string): boolean {
+  try {
+    const { protocol, hostname } = new URL(origin);
+    if (protocol !== "https:") return false;
+    const host = hostname.toLowerCase();
+    if (host === "sanaddd.netlify.app") return true;
+    return /^[\w-]+--sanaddd\.netlify\.app$/.test(host);
+  } catch {
+    return false;
+  }
+}
+
 function resolveAllowedOrigin(req: Request): string | null {
   const origin = req.headers.get("Origin");
   if (!origin) return null;
-  return getAllowedOrigins().includes(origin) ? origin : null;
+  if (getAllowedOrigins().includes(origin) || isNetlifySanadOrigin(origin)) return origin;
+  return null;
 }
 
 export function corsHeadersForRequest(
@@ -49,7 +63,9 @@ export function handleCorsPreflight(
   if (req.method !== "OPTIONS") return null;
   const headers = corsHeadersForRequest(req, allowHeaders);
   if (!headers) return new Response("Forbidden", { status: 403 });
-  return new Response("ok", { headers });
+  return new Response("ok", {
+    headers: { ...headers, "Access-Control-Allow-Methods": "POST, OPTIONS" },
+  });
 }
 
 export function jsonWithCors(

@@ -20,6 +20,7 @@
     "phase0:audit": "node scripts/phase0-duplicate-audit.mjs",
     "types:gen": "npx supabase gen types typescript --project-id lpdjtzwfxsjjudhxinmk > src/integrations/supabase/types.ts",
     "verify:rollout": "node scripts/verify-rollout.mjs",
+    "verify:cors": "node scripts/verify-cors.mjs",
     "smoke:phase6": "node scripts/smoke-phase6.mjs",
     "functions:deploy": "supabase functions deploy submission-status --project-ref lpdjtzwfxsjjudhxinmk && supabase functions deploy precheck-aid-submission --project-ref lpdjtzwfxsjjudhxinmk && supabase functions deploy admin-user-management --project-ref lpdjtzwfxsjjudhxinmk && supabase functions deploy export-job-url --project-ref lpdjtzwfxsjjudhxinmk && supabase functions deploy queue-integrity-check --project-ref lpdjtzwfxsjjudhxinmk && supabase functions deploy track-request-proxy --project-ref lpdjtzwfxsjjudhxinmk && supabase functions deploy submit-donation --project-ref lpdjtzwfxsjjudhxinmk && supabase functions deploy submit-aid-request --project-ref lpdjtzwfxsjjudhxinmk && supabase functions deploy upload-id-doc --project-ref lpdjtzwfxsjjudhxinmk",
     "functions:deploy:submission-status": "supabase functions deploy submission-status --project-ref lpdjtzwfxsjjudhxinmk",
