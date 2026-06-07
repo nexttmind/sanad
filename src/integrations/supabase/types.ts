@@ -1170,6 +1170,10 @@ export type Database = {
         Args: { _limit?: number };
         Returns: Json;
       };
+      get_admin_overview_stats: {
+        Args: Record<string, never>;
+        Returns: Json;
+      };
       get_submission_status: {
         Args: Record<string, never>;
         Returns: Json;

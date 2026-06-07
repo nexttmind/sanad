@@ -475,7 +475,9 @@ function RequestHome() {
       }
       const data = { id: submitResult.id, reference_code: submitResult.reference_code };
 
-      await insertSubmissionReference({
+      setSubmitted({ code: data.reference_code, id: data.id });
+
+      void insertSubmissionReference({
         request_id: data.id,
         reference_type: refType,
         full_name: refName.trim(),
@@ -484,17 +486,15 @@ function RequestHome() {
         village: refVillage.trim() || null,
         known_duration: refKnown || null,
         notes: refNotes.trim() || null,
+      }).catch((err) => {
+        if (import.meta.env.DEV) console.error("[RequestSubmit] reference insert:", err);
       });
 
-      // Upload document file if present (rate-limited edge proxy — Step 4.1)
       if (docFile) {
-        const uploadResult = await uploadIdDocument(data.id, docFile);
-        if (!uploadResult.ok && import.meta.env.DEV) {
-          console.error("[RequestSubmit] id doc upload:", uploadResult.message);
-        }
+        void uploadIdDocument(data.id, docFile).catch((err) => {
+          if (import.meta.env.DEV) console.error("[RequestSubmit] id doc upload:", err);
+        });
       }
-
-      setSubmitted({ code: data.reference_code, id: data.id });
     } catch (err) {
       if (import.meta.env.DEV) console.error(err);
       setSubmitError("تعذّر إرسال الطلب — يرجى المحاولة مرة أخرى أو التواصل معنا مباشرة.");

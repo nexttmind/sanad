@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { useAdminTableRealtime } from "@/lib/use-admin-realtime";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchStaffMembers, staffMapById, type StaffMember } from "@/lib/admin-staff";
 import {
@@ -79,16 +79,11 @@ function WorkQueue() {
 
   useEffect(() => {
     void load();
-    const ch = supabase
-      .channel("admin-queue")
-      .on("postgres_changes", { event: "*", schema: "public", table: "aid_requests" }, () => {
-        void load();
-      })
-      .subscribe();
-    return () => {
-      supabase.removeChannel(ch);
-    };
   }, [load]);
+
+  useAdminTableRealtime("admin-queue", "aid_requests", () => {
+    void load();
+  });
 
   const handleBulkAssign = async () => {
     setBulkBusy(true);

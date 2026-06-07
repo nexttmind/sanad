@@ -1,7 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
+import { useCallback, useEffect, useState } from "react";
+import {
+  fetchAdminOverviewStats,
+  type AdminOverviewPendingRow,
+  type AdminOverviewRecentRow,
+  type AdminOverviewStats,
+} from "@/lib/admin-overview";
+import { useAdminTableRealtime } from "@/lib/use-admin-realtime";
 import {
   TIER_BADGE_CLASS,
   TIER_LABELS,
@@ -9,8 +14,9 @@ import {
   type UrgencyTier,
 } from "@/lib/scoring";
 import { formatQueueNumber } from "@/lib/queue";
+import type { Database } from "@/integrations/supabase/types";
 
-type Row = Database["public"]["Tables"]["aid_requests"]["Row"];
+type DbStatus = Database["public"]["Enums"]["request_status"];
 
 function timeAgo(iso: string) {
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;
@@ -24,140 +30,112 @@ export const Route = createFileRoute("/admin/")({
   component: Overview,
 });
 
+const STATUS_LABELS: { key: DbStatus; label: string }[] = [
+  { key: "submitted", label: "قيد الانتظار" },
+  { key: "reviewing", label: "قيد المراجعة" },
+  { key: "approved", label: "موافق عليها" },
+  { key: "distributed", label: "تم التوزيع" },
+  { key: "on_hold", label: "معلّقة" },
+  { key: "rejected", label: "مرفوضة" },
+];
+
 function Overview() {
-  const [rows, setRows] = useState<Row[]>([]);
+  const [stats, setStats] = useState<AdminOverviewStats | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let alive = true;
-    const load = async () => {
-      const { data } = await supabase
-        .from("aid_requests")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(500);
-      if (alive) {
-        setRows(data ?? []);
-        setLoading(false);
-      }
-    };
-    load();
-    const ch = supabase
-      .channel("admin-overview")
-      .on("postgres_changes", { event: "*", schema: "public", table: "aid_requests" }, load)
-      .subscribe();
-    return () => {
-      alive = false;
-      supabase.removeChannel(ch);
-    };
+  const load = useCallback(async () => {
+    const data = await fetchAdminOverviewStats();
+    setStats(data);
+    setLoading(false);
   }, []);
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayCount = rows.filter((r) => new Date(r.created_at) >= today).length;
-  const byStatus = (s: string) => rows.filter((r) => r.status === s).length;
+  useEffect(() => {
+    void load();
+  }, [load]);
 
-  const cards = [
-    { label: "إجمالي الطلبات", value: rows.length },
-    { label: "اليوم", value: todayCount },
-    { label: "قيد الانتظار", value: byStatus("submitted") },
-    { label: "قيد المراجعة", value: byStatus("reviewing") },
-    { label: "موافق عليها", value: byStatus("approved") },
-    { label: "تم التوزيع", value: byStatus("distributed") },
-    { label: "معلّقة", value: byStatus("on_hold") },
-    { label: "مرفوضة", value: byStatus("rejected") },
-  ];
-
-  const flagged = rows.filter((r) => r.flags.length > 0).length;
-  const infantsPending = rows.filter((r) => r.infants > 0 && r.status === "submitted").length;
-  const disabledPending = rows.filter((r) => r.disabled && r.status === "submitted").length;
-  const shelterPending = rows.filter(
-    (r) =>
-      r.status === "submitted" &&
-      r.housing_type &&
-      (r.housing_type.toLowerCase().includes("school") ||
-        r.housing_type.includes("مدرسة") ||
-        r.housing_type.includes("مأوى")),
-  ).length;
-  const critical = rows.filter(
-    (r) => (r.effective_urgency ?? r.urgency_score) >= 85 && r.status === "submitted",
-  ).length;
-  const pendingQueue = rows.filter((r) =>
-    ["submitted", "reviewing", "verifying", "on_hold"].includes(r.status),
-  );
-  const oldestQueue = pendingQueue.reduce<number | null>((min, r) => {
-    const qn = r.queue_number;
-    if (qn == null) return min;
-    return min == null || qn < min ? qn : min;
-  }, null);
-  const highRisk = rows.filter((r) => r.risk_level === "fraud" || r.risk_level === "critical").length;
-
-  const topPending = [...pendingQueue]
-    .sort(
-      (a, b) =>
-        (b.effective_urgency ?? b.urgency_score) - (a.effective_urgency ?? a.urgency_score) ||
-        a.queue_number - b.queue_number,
-    )
-    .slice(0, 5);
-
-  const recentRows = [...rows]
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    .slice(0, 10);
-
-  const alerts = [
-    { label: "حالات حرجة معلّقة", count: critical, tone: "bg-destructive/15 text-destructive border-destructive/30" },
-    {
-      label: "قيد الدور",
-      count: pendingQueue.length,
-      tone: "bg-clay/15 text-clay border-clay/40",
-      href: "/admin/queue" as const,
-    },
-    ...(oldestQueue != null
-      ? [
-          {
-            label: "أقدم رقم دور",
-            count: oldestQueue,
-            tone: "bg-foreground/10 text-foreground border-foreground/25",
-            format: "queue" as const,
-          },
-        ]
-      : []),
-    { label: "رضّع لم تتم مراجعتهم", count: infantsPending, tone: "bg-warning/15 text-warning border-warning/40" },
-    { label: "ذوو احتياجات معلّقون", count: disabledPending, tone: "bg-warning/15 text-warning border-warning/40" },
-    { label: "مدارس/مأوى معلّقة", count: shelterPending, tone: "bg-clay/15 text-clay border-clay/40" },
-    { label: "احتيال مرتفع", count: highRisk, tone: "bg-destructive/15 text-destructive border-destructive/30" },
-    { label: "موسومة", count: flagged, tone: "bg-warning/15 text-warning border-warning/40" },
-  ];
-
-  // Needs breakdown
-  const needsMap = new Map<string, number>();
-  rows.forEach((r) => r.needs.forEach((n) => needsMap.set(n, (needsMap.get(n) ?? 0) + 1)));
-  const needsBreakdown = Array.from(needsMap.entries()).sort((a, b) => b[1] - a[1]).slice(0, 8);
-  const maxNeed = Math.max(1, ...needsBreakdown.map(([, v]) => v));
-
-  // Daily (last 7 days)
-  const days = ["السبت", "الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة"];
-  const daily = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() - (6 - i));
-    const next = new Date(d);
-    next.setDate(d.getDate() + 1);
-    return rows.filter((r) => {
-      const t = new Date(r.created_at);
-      return t >= d && t < next;
-    }).length;
+  useAdminTableRealtime("admin-overview", "aid_requests", () => {
+    void load();
   });
-  const max = Math.max(1, ...daily);
 
-  // Vulnerable
-  const vuln: [string, number][] = [
-    ["رضّع", rows.reduce((a, r) => a + r.infants, 0)],
-    ["ذوو إعاقة", rows.filter((r) => r.disabled).length],
-    ["مرض مزمن", rows.filter((r) => r.chronic_illness).length],
-    ["كبار سن", rows.reduce((a, r) => a + r.elderly, 0)],
-  ];
+  const statusCount = (s: DbStatus) => stats?.status_counts[s] ?? 0;
+
+  const cards = stats
+    ? [
+        { label: "إجمالي الطلبات", value: stats.total },
+        { label: "اليوم", value: stats.today_count },
+        ...STATUS_LABELS.map(({ key, label }) => ({ label, value: statusCount(key) })),
+      ]
+    : [];
+
+  const alerts = stats
+    ? [
+        {
+          label: "حالات حرجة معلّقة",
+          count: stats.alerts.critical,
+          tone: "bg-destructive/15 text-destructive border-destructive/30",
+        },
+        {
+          label: "قيد الدور",
+          count: stats.alerts.pending_queue,
+          tone: "bg-clay/15 text-clay border-clay/40",
+          href: "/admin/queue" as const,
+        },
+        ...(stats.alerts.oldest_queue != null
+          ? [
+              {
+                label: "أقدم رقم دور",
+                count: stats.alerts.oldest_queue,
+                tone: "bg-foreground/10 text-foreground border-foreground/25",
+                format: "queue" as const,
+              },
+            ]
+          : []),
+        {
+          label: "رضّع لم تتم مراجعتهم",
+          count: stats.alerts.infants_pending,
+          tone: "bg-warning/15 text-warning border-warning/40",
+        },
+        {
+          label: "ذوو احتياجات معلّقون",
+          count: stats.alerts.disabled_pending,
+          tone: "bg-warning/15 text-warning border-warning/40",
+        },
+        {
+          label: "مدارس/مأوى معلّقة",
+          count: stats.alerts.shelter_pending,
+          tone: "bg-clay/15 text-clay border-clay/40",
+        },
+        {
+          label: "احتيال مرتفع",
+          count: stats.alerts.high_risk,
+          tone: "bg-destructive/15 text-destructive border-destructive/30",
+        },
+        {
+          label: "موسومة",
+          count: stats.alerts.flagged,
+          tone: "bg-warning/15 text-warning border-warning/40",
+        },
+      ]
+    : [];
+
+  const needsBreakdown = stats?.needs_breakdown ?? [];
+  const maxNeed = Math.max(1, ...needsBreakdown.map(([, v]) => v));
+  const daily = stats?.daily_last_7 ?? [0, 0, 0, 0, 0, 0, 0];
+  const max = Math.max(1, ...daily);
+  const days = ["السبت", "الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة"];
+
+  const vuln: [string, number][] = stats
+    ? [
+        ["رضّع", stats.vulnerable.infants],
+        ["ذوو إعاقة", stats.vulnerable.disabled],
+        ["مرض مزمن", stats.vulnerable.chronic],
+        ["كبار سن", stats.vulnerable.elderly],
+      ]
+    : [];
   const vulnMax = Math.max(1, ...vuln.map(([, v]) => v));
+
+  const topPending: AdminOverviewPendingRow[] = stats?.top_pending ?? [];
+  const recentRows: AdminOverviewRecentRow[] = stats?.recent ?? [];
 
   return (
     <div className="space-y-10">

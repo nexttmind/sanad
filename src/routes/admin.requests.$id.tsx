@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAdminMultiRealtime } from "@/lib/use-admin-realtime";
 import type { Database } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -140,42 +141,24 @@ function Detail() {
       await load();
       if (alive) setLoading(false);
     })();
-    const ch = supabase
-      .channel(`admin-request-detail-${id}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "aid_requests", filter: `id=eq.${id}` },
-        () => {
-          void load();
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "aid_request_notes", filter: `request_id=eq.${id}` },
-        () => {
-          void load();
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "aid_request_history", filter: `request_id=eq.${id}` },
-        () => {
-          void load();
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "aid_request_files", filter: `request_id=eq.${id}` },
-        () => {
-          void load();
-        },
-      )
-      .subscribe();
     return () => {
       alive = false;
-      supabase.removeChannel(ch);
     };
   }, [id, load]);
+
+  const realtimeSpecs = useMemo(
+    () => [
+      { table: "aid_requests" as const, filter: `id=eq.${id}` },
+      { table: "aid_request_notes" as const, filter: `request_id=eq.${id}` },
+      { table: "aid_request_history" as const, filter: `request_id=eq.${id}` },
+      { table: "aid_request_files" as const, filter: `request_id=eq.${id}` },
+    ],
+    [id],
+  );
+
+  useAdminMultiRealtime(`admin-request-detail-${id}`, realtimeSpecs, () => {
+    void load();
+  });
 
   const updateStatus = async (status: DbStatus, reason?: string) => {
     if (!s) return;

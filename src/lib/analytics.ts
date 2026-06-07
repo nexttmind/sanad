@@ -60,6 +60,8 @@ export function parseDateRange(fromStr: string, toStr: string): DateRange {
   return { from, to };
 }
 
+const ANALYTICS_ROW_LIMIT = 10_000;
+
 export async function fetchAnalyticsData(range: DateRange): Promise<AnalyticsSnapshot> {
   const fromIso = range.from.toISOString();
   const toIso = range.to.toISOString();
@@ -71,8 +73,16 @@ export async function fetchAnalyticsData(range: DateRange): Promise<AnalyticsSna
         "created_at, needs, governorate, origin_town, trust_score, urgency_score, status, disabled, infants, chronic_illness, elderly",
       )
       .gte("created_at", fromIso)
-      .lte("created_at", toIso),
-    supabase.from("fraud_events").select("code, created_at").gte("created_at", fromIso).lte("created_at", toIso),
+      .lte("created_at", toIso)
+      .order("created_at", { ascending: false })
+      .limit(ANALYTICS_ROW_LIMIT),
+    supabase
+      .from("fraud_events")
+      .select("code, created_at")
+      .gte("created_at", fromIso)
+      .lte("created_at", toIso)
+      .order("created_at", { ascending: false })
+      .limit(ANALYTICS_ROW_LIMIT),
   ]);
 
   if (reqRes.error) throw reqRes.error;

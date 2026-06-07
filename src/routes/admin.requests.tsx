@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAdminTableRealtime } from "@/lib/use-admin-realtime";
 import type { Database } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { ExportSubmissionsModal } from "@/components/admin/ExportSubmissionsModal";
@@ -265,17 +266,14 @@ function RequestsList() {
       await loadPage(false, null);
       if (alive) setLoading(false);
     })();
-    const ch = supabase
-      .channel("admin-requests")
-      .on("postgres_changes", { event: "*", schema: "public", table: "aid_requests" }, () => {
-        void loadPage(false, null);
-      })
-      .subscribe();
     return () => {
       alive = false;
-      supabase.removeChannel(ch);
     };
   }, [loadPage]);
+
+  useAdminTableRealtime("admin-requests", "aid_requests", () => {
+    void loadPage(false, null);
+  });
 
   const setSort = (field: SortField) => {
     const direction =

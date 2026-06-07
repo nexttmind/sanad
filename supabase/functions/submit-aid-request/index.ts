@@ -183,6 +183,63 @@ const REASON_MESSAGES: Record<string, string> = {
     "سبق أن قُدّم طلب بهذه الوثيقة. يُسمح بطلب واحد فقط لكل رقم وثيقة.",
 };
 
+const SUBMIT_IP_LIMIT = 20;
+const SUBMIT_PHONE_LIMIT = 5;
+const SUBMIT_WINDOW_SECONDS = 3600;
+
+type RateLimitRow = {
+  allowed?: boolean;
+  retry_after_seconds?: number;
+};
+
+async function assertSubmitRateLimits(
+  admin: ReturnType<typeof createClient>,
+  ipHash: string,
+  phoneRaw: string,
+): Promise<{ message: string; retryAfterSeconds: number } | null> {
+  const checks = [
+    { identifier: ipHash, max: SUBMIT_IP_LIMIT },
+    { identifier: `phone:${phoneRaw.replace(/[\s-]/g, "")}`, max: SUBMIT_PHONE_LIMIT },
+  ];
+  let maxRetry = 0;
+
+  for (const check of checks) {
+    const { data, error } = await admin.rpc("check_rate_limit", {
+      _identifier: check.identifier,
+      _action: "aid_submit",
+      _max_count: check.max,
+      _window_seconds: SUBMIT_WINDOW_SECONDS,
+    });
+    if (error) {
+      console.error("[submit-aid-request] check_rate_limit:", error);
+      throw error;
+    }
+    const row = (data ?? {}) as RateLimitRow;
+    if (row.allowed === false) {
+      maxRetry = Math.max(maxRetry, Number(row.retry_after_seconds ?? SUBMIT_WINDOW_SECONDS));
+    }
+  }
+
+  if (maxRetry > 0) {
+    return {
+      message: "تجاوزت الحد المسموح لمحاولات الإرسال — حاول لاحقاً.",
+      retryAfterSeconds: maxRetry,
+    };
+  }
+  return null;
+}
+
+function scheduleScoreRecalc(
+  admin: ReturnType<typeof createClient>,
+  requestId: string,
+): void {
+  admin.rpc("calculate_scores", { _request_id: requestId, _triggered_by: "system" }).then(({ error }) => {
+    if (error) console.error("[submit-aid-request] deferred calculate_scores:", error);
+  }).catch((err) => {
+    console.error("[submit-aid-request] deferred calculate_scores:", err);
+  });
+}
+
 Deno.serve(async (req) => {
   const preflight = handleCorsPreflight(req);
   if (preflight) return preflight;
@@ -208,6 +265,16 @@ Deno.serve(async (req) => {
     const admin = createClient(supabaseUrl, serviceKey);
     const phoneRaw = body.phone!.trim();
     const nationalId = body.national_id!.trim();
+    const ipHash = hashIdentifier(req.headers.get("x-forwarded-for") ?? "unknown");
+
+    const rateBlocked = await assertSubmitRateLimits(admin, ipHash, phoneRaw);
+    if (rateBlocked) {
+      return jsonWithCors(req, {
+        ok: false,
+        message: rateBlocked.message,
+        retry_after_seconds: rateBlocked.retryAfterSeconds,
+      }, 429);
+    }
 
     const { data: eligibility, error: eligibilityError } = await admin.rpc(
       "check_submission_eligibility",
@@ -230,7 +297,6 @@ Deno.serve(async (req) => {
       }, 409);
     }
 
-    const ipHash = hashIdentifier(req.headers.get("x-forwarded-for") ?? "unknown");
     const needs = Array.isArray(body.needs) ? body.needs.filter((n) => typeof n === "string") : [];
 
     const { data, error } = await admin
@@ -308,6 +374,8 @@ Deno.serve(async (req) => {
     if (!data) {
       return jsonWithCors(req, { ok: false, message: "تعذّر إرسال الطلب." }, 500);
     }
+
+    scheduleScoreRecalc(admin, data.id);
 
     return jsonWithCors(req, { ok: true, id: data.id, reference_code: data.reference_code }, 200);
   } catch (err) {

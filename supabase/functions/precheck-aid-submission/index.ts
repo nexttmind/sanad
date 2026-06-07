@@ -104,6 +104,61 @@ type EligibilityRow = {
   existing_reference_code?: string | null;
 };
 
+function hashIdentifier(value: string): string {
+  let h = 0;
+  for (let i = 0; i < value.length; i++) {
+    h = (h << 5) - h + value.charCodeAt(i);
+    h |= 0;
+  }
+  return `ip_${Math.abs(h)}`;
+}
+
+const PRECHECK_IP_LIMIT = 120;
+const PRECHECK_PHONE_LIMIT = 60;
+const PRECHECK_WINDOW_SECONDS = 3600;
+
+type RateLimitRow = {
+  allowed?: boolean;
+  retry_after_seconds?: number;
+};
+
+async function assertPrecheckRateLimits(
+  admin: ReturnType<typeof createClient>,
+  ipHash: string,
+  phoneRaw: string,
+): Promise<{ message: string; retryAfterSeconds: number } | null> {
+  const checks = [
+    { identifier: ipHash, max: PRECHECK_IP_LIMIT },
+    { identifier: `phone:${phoneRaw.replace(/[\s-]/g, "")}`, max: PRECHECK_PHONE_LIMIT },
+  ];
+  let maxRetry = 0;
+
+  for (const check of checks) {
+    const { data, error } = await admin.rpc("check_rate_limit", {
+      _identifier: check.identifier,
+      _action: "aid_precheck",
+      _max_count: check.max,
+      _window_seconds: PRECHECK_WINDOW_SECONDS,
+    });
+    if (error) {
+      console.error("[precheck-aid-submission] check_rate_limit:", error);
+      throw error;
+    }
+    const row = (data ?? {}) as RateLimitRow;
+    if (row.allowed === false) {
+      maxRetry = Math.max(maxRetry, Number(row.retry_after_seconds ?? PRECHECK_WINDOW_SECONDS));
+    }
+  }
+
+  if (maxRetry > 0) {
+    return {
+      message: "تجاوزت الحد المسموح للتحقق — حاول لاحقاً.",
+      retryAfterSeconds: maxRetry,
+    };
+  }
+  return null;
+}
+
 Deno.serve(async (req) => {
   const preflight = handleCorsPreflight(req);
   if (preflight) return preflight;
@@ -132,6 +187,17 @@ Deno.serve(async (req) => {
     }
 
     const admin = createClient(supabaseUrl, serviceKey);
+    const ipHash = hashIdentifier(req.headers.get("x-forwarded-for") ?? "unknown");
+
+    const rateBlocked = await assertPrecheckRateLimits(admin, ipHash, phoneRaw);
+    if (rateBlocked) {
+      return jsonWithCors(req, {
+        ok: false,
+        message: rateBlocked.message,
+        retry_after_seconds: rateBlocked.retryAfterSeconds,
+      }, 429);
+    }
+
     const nationalId = body.national_id?.trim();
     const documentType = body.document_type as DocumentType | undefined;
 
