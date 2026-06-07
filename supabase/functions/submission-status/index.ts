@@ -1,12 +1,19 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
-const DEFAULT_ALLOWED = ["http://localhost:5173", "http://localhost:3000"];
+const DEFAULT_ALLOWED = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "http://localhost:8080",
+  "https://sanaddd.netlify.app",
+];
 const BASE_ALLOW_HEADERS = "authorization, x-client-info, apikey, content-type";
 
 function getAllowedOrigins(): string[] {
   const raw = Deno.env.get("ALLOWED_ORIGINS");
-  if (!raw?.trim()) return DEFAULT_ALLOWED;
-  return raw.split(",").map((origin) => origin.trim()).filter(Boolean);
+  const fromEnv = raw?.trim()
+    ? raw.split(",").map((origin) => origin.trim()).filter(Boolean)
+    : [];
+  return [...new Set([...DEFAULT_ALLOWED, ...fromEnv])];
 }
 
 function resolveAllowedOrigin(req: Request): string | null {
@@ -39,7 +46,9 @@ function handleCorsPreflight(
   if (req.method !== "OPTIONS") return null;
   const headers = corsHeadersForRequest(req, allowHeaders);
   if (!headers) return new Response("Forbidden", { status: 403 });
-  return new Response("ok", { headers });
+  return new Response("ok", {
+    headers: { ...headers, "Access-Control-Allow-Methods": "POST, OPTIONS" },
+  });
 }
 
 function jsonWithCors(

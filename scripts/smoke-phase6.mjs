@@ -78,20 +78,36 @@ function skipCheck(label, reason) {
   console.log(`SKIP ${label}: ${reason}`);
 }
 
-async function edgePost(name, body) {
-  const res = await fetch(`${url}/functions/v1/${name}`, {
-    method: "POST",
-    headers: anonHeaders,
-    body: JSON.stringify(body),
-  });
-  const text = await res.text();
-  let parsed;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    parsed = text;
+async function edgePost(name, body, opts = {}) {
+  const maxAttempts = opts.retries ?? 3;
+  const retryStatuses = new Set([502, 503, 504, 546]);
+  let last = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const res = await fetch(`${url}/functions/v1/${name}`, {
+      method: "POST",
+      headers: anonHeaders,
+      body: JSON.stringify(body),
+    });
+    const text = await res.text();
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      parsed = text;
+    }
+    last = { status: res.status, body: parsed };
+
+    if (!retryStatuses.has(res.status) || attempt === maxAttempts) {
+      return last;
+    }
+
+    const waitMs = attempt * 3000;
+    console.log(`  … ${name} returned ${res.status}, retry ${attempt}/${maxAttempts - 1} in ${waitMs / 1000}s`);
+    await new Promise((r) => setTimeout(r, waitMs));
   }
-  return { status: res.status, body: parsed };
+
+  return last;
 }
 
 function basePayload(phone, nationalId, documentType = "lebanese_id") {
@@ -148,6 +164,9 @@ else {
   failCheck("6.0 verify:rollout", rollout.stdout?.trim() || rollout.stderr?.trim());
 }
 
+// Brief pause so verify:rollout edge calls don't saturate workers before full submits.
+await new Promise((r) => setTimeout(r, 2000));
+
 try {
   await cleanup();
 
@@ -191,39 +210,43 @@ try {
     }
   }
 
-  // --- 6.5 duplicate phone (different format) via precheck + submit ---
-  {
-    const altPhone = "+961 70 999 101";
-    const pre = await precheck(altPhone, "99109999");
-    if (pre.status === 200 && pre.body?.allowed === false && pre.body?.reason === "phone_already_submitted") {
-      pass("6.5 precheck duplicate phone (alt format)", pre.body.reason);
-    } else {
-      failCheck("6.5 precheck duplicate phone", `${pre.status} ${JSON.stringify(pre.body)}`);
+  if (!ref1) {
+    skipCheck("6.5–6.6 duplicate checks", "first submit did not succeed — re-run after workers recover");
+  } else {
+    // --- 6.5 duplicate phone (different format) via precheck + submit ---
+    {
+      const altPhone = "+961 70 999 101";
+      const pre = await precheck(altPhone, "99109999");
+      if (pre.status === 200 && pre.body?.allowed === false && pre.body?.reason === "phone_already_submitted") {
+        pass("6.5 precheck duplicate phone (alt format)", pre.body.reason);
+      } else {
+        failCheck("6.5 precheck duplicate phone", `${pre.status} ${JSON.stringify(pre.body)}`);
+      }
+
+      const sub = await submit(basePayload(altPhone, "99109999"));
+      if (sub.status === 409 && sub.body?.reason === "phone_already_submitted") {
+        pass("6.5 submit duplicate phone (alt format) → 409", sub.body.reason);
+      } else {
+        failCheck("6.5 submit duplicate phone", `${sub.status} ${JSON.stringify(sub.body)}`);
+      }
     }
 
-    const sub = await submit(basePayload(altPhone, "99109999"));
-    if (sub.status === 409 && sub.body?.reason === "phone_already_submitted") {
-      pass("6.5 submit duplicate phone (alt format) → 409", sub.body.reason);
-    } else {
-      failCheck("6.5 submit duplicate phone", `${sub.status} ${JSON.stringify(sub.body)}`);
-    }
-  }
+    // --- 6.6 duplicate ID (spaces/dashes) ---
+    {
+      const spacedId = "9910-1010";
+      const pre = await precheck(SMOKE.phone2, spacedId);
+      if (pre.status === 200 && pre.body?.allowed === false && pre.body?.reason === "id_already_submitted") {
+        pass("6.6 precheck duplicate ID (spaced)", pre.body.reason);
+      } else {
+        failCheck("6.6 precheck duplicate ID", `${pre.status} ${JSON.stringify(pre.body)}`);
+      }
 
-  // --- 6.6 duplicate ID (spaces/dashes) ---
-  {
-    const spacedId = "9910-1010";
-    const pre = await precheck(SMOKE.phone2, spacedId);
-    if (pre.status === 200 && pre.body?.allowed === false && pre.body?.reason === "id_already_submitted") {
-      pass("6.6 precheck duplicate ID (spaced)", pre.body.reason);
-    } else {
-      failCheck("6.6 precheck duplicate ID", `${pre.status} ${JSON.stringify(pre.body)}`);
-    }
-
-    const sub = await submit(basePayload(SMOKE.phone2, spacedId));
-    if (sub.status === 409 && sub.body?.reason === "id_already_submitted") {
-      pass("6.6 submit duplicate ID (spaced) → 409", sub.body.reason);
-    } else {
-      failCheck("6.6 submit duplicate ID", `${sub.status} ${JSON.stringify(sub.body)}`);
+      const sub = await submit(basePayload(SMOKE.phone2, spacedId));
+      if (sub.status === 409 && sub.body?.reason === "id_already_submitted") {
+        pass("6.6 submit duplicate ID (spaced) → 409", sub.body.reason);
+      } else {
+        failCheck("6.6 submit duplicate ID", `${sub.status} ${JSON.stringify(sub.body)}`);
+      }
     }
   }
 
