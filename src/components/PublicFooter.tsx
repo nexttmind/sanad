@@ -1,6 +1,9 @@
 import { Link } from "@tanstack/react-router";
+import { usePublicSiteConfig } from "@/lib/use-public-site-config";
 
 export function PublicFooter() {
+  const { config } = usePublicSiteConfig();
+
   return (
     <footer className="border-t border-border bg-surface">
       <div className="mx-auto grid max-w-7xl gap-10 px-5 py-12 sm:px-6 sm:py-14 lg:grid-cols-4 lg:px-10">
@@ -28,9 +31,9 @@ export function PublicFooter() {
         <div>
           <div className="font-display text-sm">للتواصل</div>
           <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
-            <li>هاتف: <span dir="ltr">+961 70 000 000</span></li>
-            <li>بريد: hello@sanad.lb</li>
-            <li>صور — الجنوب اللبناني</li>
+            <li>هاتف: <span dir="ltr">{config.contact.footer_phone}</span></li>
+            <li>بريد: {config.contact.footer_email}</li>
+            <li>{config.contact.footer_location}</li>
           </ul>
         </div>
       </div>

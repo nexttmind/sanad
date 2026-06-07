@@ -22,6 +22,7 @@ export type TrackLookupRow = {
   distribution_location: string | null;
   created_at: string;
   updated_at: string;
+  request_id?: string | null;
 };
 
 export type TrackLookupResult =

@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import QRCode from "qrcode";
 import { PublicNav } from "@/components/PublicNav";
 import { PublicFooter } from "@/components/PublicFooter";
+import { PublicQrCard } from "@/components/PublicQrCard";
+import { usePublicSiteConfig } from "@/lib/use-public-site-config";
 import { insertSubmissionReference } from "@/lib/submission-reference";
 import { submitAidRequest } from "@/lib/submit-aid-request";
 import { uploadIdDocument } from "@/lib/upload-id-doc";
@@ -165,23 +166,8 @@ function Counter({ to, suffix }: { to: number; suffix: string }) {
 
 /* ----------------------------- success screen ----------------------------- */
 function Success({ code, id, onReset }: { code: string; id: string; onReset: () => void }) {
+  const { config } = usePublicSiteConfig();
   const [copied, setCopied] = useState(false);
-  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    const payload = `SANAD:${code}:${id}:${new Date().toISOString().slice(0, 10)}`;
-    QRCode.toDataURL(payload, { width: 320, margin: 1, errorCorrectionLevel: "M" })
-      .then(setQrDataUrl)
-      .catch(() => setQrDataUrl(null));
-  }, [code, id]);
-
-  const downloadQr = () => {
-    if (!qrDataUrl) return;
-    const a = document.createElement("a");
-    a.href = qrDataUrl;
-    a.download = `sanad-${code}.png`;
-    a.click();
-  };
 
   return (
     <div className="mx-auto max-w-2xl px-5 py-16 text-center sm:px-6 sm:py-24 lg:px-10">
@@ -190,8 +176,8 @@ function Success({ code, id, onReset }: { code: string; id: string; onReset: () 
           <path d="M4 12l5 5L20 6" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </div>
-      <h1 className="mt-6 font-display text-3xl sm:text-4xl">تم استلام طلبك بنجاح</h1>
-      <p className="mt-3 text-sm text-muted-foreground sm:text-base">سيتواصل معك فريق سند على رقم هاتفك في أقرب وقت ممكن.</p>
+      <h1 className="mt-6 font-display text-3xl sm:text-4xl">{config.qr.submit_success_title}</h1>
+      <p className="mt-3 text-sm text-muted-foreground sm:text-base">{config.qr.submit_success_subtitle}</p>
 
       <div className="mx-auto mt-8 max-w-md rounded-2xl border border-border bg-card p-5 sm:p-6">
         <div className="text-[11px] uppercase tracking-wider text-muted-foreground">رقمك المرجعي</div>
@@ -209,33 +195,31 @@ function Success({ code, id, onReset }: { code: string; id: string; onReset: () 
           قيد المراجعة
         </div>
 
-        {qrDataUrl && (
-          <div className="mt-6 flex flex-col items-center gap-3">
-            <div className="rounded-xl border border-border bg-white p-3">
-              <img src={qrDataUrl} alt={`رمز QR للطلب ${code}`} width={220} height={220} className="block h-auto max-w-full" />
-            </div>
-            <p className="max-w-xs text-[11px] text-muted-foreground sm:text-xs">
-              احفظ هذا الرمز. سيُطلب منك عرضه عند توزيع المساعدة لتأكيد هويتك.
-            </p>
-            <button onClick={downloadQr} className="rounded-full border border-border px-4 py-2 text-xs hover:border-clay">
-              تحميل الرمز
-            </button>
-          </div>
+        {config.qr.show_on_submit_success && (
+          <PublicQrCard
+            referenceCode={code}
+            requestId={id}
+            instructions={config.qr.submit_success_instructions}
+          />
         )}
       </div>
 
       <div className="mx-auto mt-8 max-w-xl space-y-3 text-right">
         <p className="font-display text-base sm:text-lg">ماذا يحدث الآن</p>
         <ol className="space-y-2 text-[13px] text-muted-foreground sm:text-sm">
-          <li className="flex gap-3"><span className="font-mono text-clay">٠١</span> يُراجع طلبك من قبل فريقنا.</li>
-          <li className="flex gap-3"><span className="font-mono text-clay">٠٢</span> نتواصل مع المرجع للتحقق من حالتك.</li>
-          <li className="flex gap-3"><span className="font-mono text-clay">٠٣</span> نتواصل معك لتحديد موعد التوزيع.</li>
+          {config.qr.submit_success_steps.map((step, i) => (
+            <li key={step} className="flex gap-3">
+              <span className="font-mono text-clay">{["٠١", "٠٢", "٠٣", "٠٤", "٠٥"][i] ?? String(i + 1)}</span>
+              {step}
+            </li>
+          ))}
         </ol>
       </div>
 
       <div className="mt-8 flex flex-wrap justify-center gap-3">
         <button onClick={onReset} className="rounded-full border border-border px-5 py-3 text-sm hover:border-foreground/40">تقديم طلب جديد</button>
         <Link to="/donate" className="rounded-full bg-primary px-5 py-3 text-sm text-primary-foreground hover:bg-primary/90">صفحة التبرّع</Link>
+        <Link to="/track" className="rounded-full border border-border px-5 py-3 text-sm hover:border-clay">تتبّع طلبك</Link>
       </div>
     </div>
   );

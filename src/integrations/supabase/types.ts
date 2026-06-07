@@ -918,6 +918,33 @@ export type Database = {
         };
         Relationships: [];
       };
+      public_site_config: {
+        Row: {
+          id: string;
+          version: number;
+          config: Json;
+          is_active: boolean;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          version: number;
+          config: Json;
+          is_active?: boolean;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          version?: number;
+          config?: Json;
+          is_active?: boolean;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [];
+      };
       submission_references: {
         Row: {
           id: string;
@@ -1158,6 +1185,10 @@ export type Database = {
         Args: { _job_id: string };
         Returns: string;
       };
+      get_public_site_config: {
+        Args: Record<string, never>;
+        Returns: Json;
+      };
       get_active_scoring_config: {
         Args: Record<string, never>;
         Returns: Json;
@@ -1235,6 +1266,10 @@ export type Database = {
           donor_display: string;
           message: string | null;
         }[];
+      };
+      save_public_site_config: {
+        Args: { _config: Json };
+        Returns: number;
       };
       save_scoring_config: {
         Args: { _rules: Json };

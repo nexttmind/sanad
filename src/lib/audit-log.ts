@@ -19,6 +19,7 @@ export const AUDIT_ACTIONS = [
   "priority_override_set",
   "priority_override_cleared",
   "scoring_config_updated",
+  "public_site_config_updated",
   "queue_integrity_check",
   "field_updated",
 ] as const;
@@ -43,6 +44,7 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   priority_override_set: "تفعيل أولوية",
   priority_override_cleared: "إلغاء أولوية",
   scoring_config_updated: "تحديث قواعد العجلة",
+  public_site_config_updated: "تحديث إعدادات الموقع العام",
   queue_integrity_check: "فحص سلامة الدور",
   field_updated: "تعديل بيانات الطلب",
 };

@@ -12,6 +12,7 @@ const navItems = [
   { to: "/admin/donations", label: "التبرّعات" },
   { to: "/admin/references", label: "قائمة المختارين" },
   { to: "/admin/distribution", label: "التوزيع" },
+  { to: "/admin/public-settings", label: "إعدادات الموقع", adminOnly: true },
   { to: "/admin/analytics", label: "التحليلات" },
   { to: "/admin/scoring", label: "قواعد العجلة", adminOnly: true },
   { to: "/admin/users", label: "المستخدمون" },

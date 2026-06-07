@@ -12,10 +12,12 @@ describe("audit-log helpers", () => {
     expect(AUDIT_ACTIONS).toContain("urgency_override");
     expect(AUDIT_ACTIONS).toContain("priority_override_set");
     expect(AUDIT_ACTIONS).toContain("priority_override_cleared");
+    expect(AUDIT_ACTIONS).toContain("public_site_config_updated");
     expect(AUDIT_ACTIONS).toContain("scoring_config_updated");
     expect(AUDIT_ACTIONS).toContain("queue_integrity_check");
     expect(AUDIT_ACTIONS).toContain("field_updated");
     expect(AUDIT_ACTION_LABELS.export_csv).toBe("تصدير CSV");
+    expect(AUDIT_ACTION_LABELS.public_site_config_updated).toBe("تحديث إعدادات الموقع العام");
     expect(AUDIT_ACTION_LABELS.scoring_config_updated).toBe("تحديث قواعد العجلة");
     expect(AUDIT_ACTION_LABELS.queue_integrity_check).toBe("فحص سلامة الدور");
   });

@@ -2,15 +2,16 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { PublicNav } from "@/components/PublicNav";
 import { PublicFooter } from "@/components/PublicFooter";
+import { PublicQrCard } from "@/components/PublicQrCard";
 import type { Database } from "@/integrations/supabase/types";
-import { lookupTrackRequest, type TrackHistoryEntry, type TrackLookupRow, type TrackQueuePosition } from "@/lib/track-request";
+import { lookupTrackRequest, type TrackHistoryEntry, type TrackQueuePosition } from "@/lib/track-request";
 import { formatQueueNumber, formatQueuePosition } from "@/lib/queue";
+import { phoneToTelHref, type PublicSiteConfig, type RequestStatus } from "@/lib/public-site-config";
+import { usePublicSiteConfig } from "@/lib/use-public-site-config";
 
 type DbStatus = Database["public"]["Enums"]["request_status"];
-type TrackResult = TrackLookupRow;
 
-// Local UI types (kept so the rest of the file renders unchanged)
-type Status = DbStatus;
+type Status = RequestStatus;
 type Submission = {
   code: string;
   name: string;
@@ -24,29 +25,7 @@ type Submission = {
   submittedAt: string;
   history: TrackHistoryEntry[];
   queue: TrackQueuePosition | null;
-};
-
-export const Route = createFileRoute("/track")({
-  head: () => ({
-    meta: [
-      { title: "تتبّع طلبك — سند" },
-      { name: "description", content: "أدخل رقم هاتفك ورقمك المرجعي لمتابعة حالة طلبك." },
-    ],
-  }),
-  component: TrackPage,
-});
-
-/* ------------------------------------------------------------------ */
-/*  Status mapping — public-facing labels                              */
-/* ------------------------------------------------------------------ */
-const PUBLIC_STATUS_LABEL: Record<Status, string> = {
-  submitted: "قيد الانتظار",
-  reviewing: "قيد المراجعة",
-  verifying: "التحقق من المرجع",
-  approved: "موافق عليه",
-  distributed: "تم التوزيع",
-  rejected: "مرفوض",
-  on_hold: "يحتاج مزيداً من المعلومات",
+  requestId: string | null;
 };
 
 const STATUS_TONE: Record<Status, string> = {
@@ -59,29 +38,20 @@ const STATUS_TONE: Record<Status, string> = {
   on_hold: "bg-warning/15 text-warning border-warning/40",
 };
 
-const NEXT_STEP: Record<Status, string> = {
-  submitted: "طلبك في قائمة الانتظار. سيبدأ فريقنا بمراجعته قريباً. لا حاجة لأي إجراء من جهتك الآن.",
-  reviewing: "فريقنا يراجع طلبك حالياً. قد نتواصل معك على رقمك إذا احتجنا إلى مزيد من المعلومات.",
-  verifying: "نتواصل مع المرجع الذي ذكرته للتحقق من هويتك. تأكد أن المرجع يعرف بتقديمك لهذا الطلب.",
-  approved: "تهانينا — تم الموافقة على طلبك. سيتواصل معك فريقنا على رقم هاتفك لتحديد موعد وموقع استلام المساعدات.",
-  distributed: "تم توزيع المساعدات على عائلتك. نأمل أن تكون قد وصلت في الوقت المناسب. شكراً لثقتك بسند.",
-  rejected: "نأسف لإبلاغك أن طلبك لم يتم قبوله في الوقت الحالي. للاستفسار عن السبب يرجى التواصل معنا مباشرة.",
-  on_hold: "فريقنا بحاجة إلى مزيد من المعلومات. يرجى انتظار اتصالنا على رقم هاتفك أو التواصل معنا مباشرة.",
-};
+export const Route = createFileRoute("/track")({
+  head: () => ({
+    meta: [
+      { title: "تتبّع طلبك — سند" },
+      { name: "description", content: "أدخل رقم هاتفك ورقمك المرجعي لمتابعة حالة طلبك." },
+    ],
+  }),
+  component: TrackPage,
+});
 
-/* ------------------------------------------------------------------ */
-/*  Timeline derivation                                                */
-/* ------------------------------------------------------------------ */
-type Stage = { key: string; title: string; desc: string };
-const STAGES: Stage[] = [
-  { key: "submitted", title: "تم تقديم الطلب", desc: "تم استلام طلبك بنجاح." },
-  { key: "reviewing", title: "قيد المراجعة", desc: "يقوم فريقنا بمراجعة المعلومات المُقدّمة." },
-  { key: "verifying", title: "التحقق من المرجع", desc: "نتواصل مع المرجع الذي ذكرته للتأكد من حالتك." },
-  { key: "approved", title: "موافق عليه", desc: "تمّت الموافقة وتمّت جدولة التوزيع." },
-  { key: "distributed", title: "تم التوزيع", desc: "وصلت المساعدات إلى العائلة." },
-];
-
-function currentStageIndex(s: Status): number {
+function currentStageIndex(s: Status, stages: PublicSiteConfig["track"]["timeline_stages"]): number {
+  const keys = stages.map((stage) => stage.key);
+  const idx = keys.indexOf(s);
+  if (idx >= 0) return idx;
   switch (s) {
     case "submitted": return 0;
     case "reviewing": return 1;
@@ -102,8 +72,8 @@ function fmtDate(iso?: string) {
 }
 
 /** Map real aid_request_history rows to timeline stage timestamps. */
-function stageTimestamps(sub: Submission): (string | null)[] {
-  const idx = currentStageIndex(sub.status);
+function stageTimestamps(sub: Submission, stages: PublicSiteConfig["track"]["timeline_stages"]): (string | null)[] {
+  const idx = currentStageIndex(sub.status, stages);
   const byStatus = new Map<DbStatus, string>();
 
   for (const entry of sub.history) {
@@ -116,7 +86,7 @@ function stageTimestamps(sub: Submission): (string | null)[] {
     byStatus.set("submitted", sub.submittedAt);
   }
 
-  return STAGES.map((stage, i) => {
+  return stages.map((stage, i) => {
     if (i > idx) return null;
     return byStatus.get(stage.key as DbStatus) ?? null;
   });
@@ -131,14 +101,11 @@ function maskPhone(p: string) {
   return "••• ••• " + digits.slice(-3);
 }
 
-function normalizePhone(p: string) {
-  return p.replace(/\D/g, "").replace(/^961/, "").replace(/^0/, "");
-}
-
 /* ------------------------------------------------------------------ */
 /*  Page                                                               */
 /* ------------------------------------------------------------------ */
 function TrackPage() {
+  const { config } = usePublicSiteConfig();
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [result, setResult] = useState<Submission | "not-found" | "rate-limited" | null>(null);
@@ -176,6 +143,7 @@ function TrackPage() {
           submittedAt: row.created_at,
           history: lookup.history,
           queue: lookup.queue,
+          requestId: row.request_id ?? null,
         };
         setResult(sub);
         setTimeout(() => document.getElementById("result")?.scrollIntoView({ behavior: "smooth" }), 50);
@@ -196,13 +164,20 @@ function TrackPage() {
     <main className="min-h-screen bg-background">
       <PublicNav />
 
+      {!config.track.enabled ? (
+        <section className="mx-auto max-w-3xl px-5 py-28 text-center sm:px-6">
+          <h1 className="font-display text-3xl">التتبّع غير متاح حالياً</h1>
+          <p className="mt-3 text-sm text-muted-foreground">يرجى التواصل مع فريق سند للمساعدة.</p>
+        </section>
+      ) : (
+      <>
       {/* HEADER */}
       <section id="track-form" className="border-b border-border bg-surface">
         <div className="mx-auto max-w-3xl px-5 pt-28 pb-12 sm:px-6 sm:pt-32 lg:px-10">
           <p className="font-mono text-[10px] uppercase tracking-[0.4em] text-clay sm:text-[11px]">المتابعة</p>
-          <h1 className="mt-3 font-display text-3xl leading-tight sm:text-4xl md:text-5xl">تتبّع طلبك</h1>
+          <h1 className="mt-3 font-display text-3xl leading-tight sm:text-4xl md:text-5xl">{config.track.page_title}</h1>
           <p className="mt-3 max-w-md text-[13px] text-muted-foreground sm:text-sm">
-            أدخل رقم هاتفك والرقم المرجعي لمعرفة آخر تحديثات حالتك.
+            {config.track.page_subtitle}
           </p>
 
           <form onSubmit={onSearch} className="mt-8 space-y-3">
@@ -238,12 +213,14 @@ function TrackPage() {
 
       {/* RESULT */}
       <section id="result" className="mx-auto max-w-3xl px-5 py-12 sm:px-6 sm:py-16 lg:px-10">
-        {searched && result === "not-found" && <NotFound onReset={reset} />}
-        {searched && result === "rate-limited" && <RateLimited onReset={reset} />}
+        {searched && result === "not-found" && <NotFound config={config} onReset={reset} />}
+        {searched && result === "rate-limited" && <RateLimited config={config} onReset={reset} />}
         {result && result !== "not-found" && result !== "rate-limited" && (
-          <FoundResult sub={result} onReset={reset} />
+          <FoundResult sub={result} config={config} onReset={reset} />
         )}
       </section>
+      </>
+      )}
 
       <PublicFooter />
     </main>
@@ -253,7 +230,7 @@ function TrackPage() {
 /* ------------------------------------------------------------------ */
 /*  Outcome B — Not Found                                              */
 /* ------------------------------------------------------------------ */
-function NotFound({ onReset }: { onReset: () => void }) {
+function NotFound({ config, onReset }: { config: PublicSiteConfig; onReset: () => void }) {
   return (
     <div className="rise rounded-2xl border border-border bg-card p-6 sm:p-8">
       <div className="grid h-12 w-12 place-items-center rounded-full bg-warning/15 text-warning">
@@ -261,17 +238,17 @@ function NotFound({ onReset }: { onReset: () => void }) {
           <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="13" /><line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
       </div>
-      <h2 className="mt-4 font-display text-2xl text-foreground sm:text-3xl">لم نعثر على طلب بهذه المعلومات</h2>
+      <h2 className="mt-4 font-display text-2xl text-foreground sm:text-3xl">{config.track.not_found_title}</h2>
       <ul className="mt-4 space-y-2.5 text-[13px] leading-relaxed text-muted-foreground sm:text-sm">
-        <li className="flex gap-2"><span className="text-clay">•</span> تأكّد أنّ الرقم المرجعي بصيغة <span dir="ltr" className="font-mono text-foreground">SND-XXXXX</span>.</li>
-        <li className="flex gap-2"><span className="text-clay">•</span> تأكّد أنّ رقم الهاتف هو نفسه الذي استخدمته عند التقديم.</li>
-        <li className="flex gap-2"><span className="text-clay">•</span> إذا استمرّت المشكلة، تواصل مع فريقنا مباشرةً.</li>
+        {config.track.not_found_bullets.map((line) => (
+          <li key={line} className="flex gap-2"><span className="text-clay">•</span> {line}</li>
+        ))}
       </ul>
       <div className="mt-6 flex flex-wrap gap-3">
         <button onClick={onReset} className="rounded-full border border-border px-5 py-2.5 text-sm hover:border-foreground/40">
           إعادة المحاولة
         </button>
-        <a href="tel:+96170000000" className="rounded-full bg-primary px-5 py-2.5 text-sm text-primary-foreground hover:bg-primary/90">
+        <a href={phoneToTelHref(config.track.contact_phone)} className="rounded-full bg-primary px-5 py-2.5 text-sm text-primary-foreground hover:bg-primary/90">
           الاتصال بالفريق
         </a>
       </div>
@@ -279,12 +256,12 @@ function NotFound({ onReset }: { onReset: () => void }) {
   );
 }
 
-function RateLimited({ onReset }: { onReset: () => void }) {
+function RateLimited({ config, onReset }: { config: PublicSiteConfig; onReset: () => void }) {
   return (
     <div className="rise rounded-2xl border border-warning/30 bg-warning/5 p-6 sm:p-8">
       <h2 className="font-display text-2xl text-foreground sm:text-3xl">تجاوزت الحد المسموح</h2>
       <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground sm:text-sm">
-        عدد محاولات التتبّع كبير من هذا الاتصال. يرجى الانتظار ساعة ثم المحاولة مجدداً.
+        {config.track.rate_limit_message}
       </p>
       <div className="mt-6">
         <button onClick={onReset} className="rounded-full border border-border bg-background px-5 py-2.5 text-sm hover:border-foreground/40">
@@ -298,11 +275,24 @@ function RateLimited({ onReset }: { onReset: () => void }) {
 /* ------------------------------------------------------------------ */
 /*  Outcome A — Found                                                  */
 /* ------------------------------------------------------------------ */
-function FoundResult({ sub, onReset }: { sub: Submission; onReset: () => void }) {
-  const idx = currentStageIndex(sub.status);
-  const ts = stageTimestamps(sub);
+function FoundResult({
+  sub,
+  config,
+  onReset,
+}: {
+  sub: Submission;
+  config: PublicSiteConfig;
+  onReset: () => void;
+}) {
+  const stages = config.track.timeline_stages;
+  const idx = currentStageIndex(sub.status, stages);
+  const ts = stageTimestamps(sub, stages);
   const [openSummary, setOpenSummary] = useState(false);
   const isDistributed = sub.status === "distributed";
+  const showQr =
+    config.qr.show_on_track_when_approved &&
+    sub.requestId &&
+    (sub.status === "approved" || sub.status === "distributed");
 
   return (
     <div className="rise space-y-6">
@@ -312,7 +302,7 @@ function FoundResult({ sub, onReset }: { sub: Submission; onReset: () => void })
           <div className="flex items-baseline justify-between gap-3">
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground">الرقم المرجعي</div>
             <span className={["rounded-full border px-2.5 py-0.5 text-[10px] sm:text-[11px]", STATUS_TONE[sub.status]].join(" ")}>
-              {PUBLIC_STATUS_LABEL[sub.status]}
+              {config.track.status_labels[sub.status]}
             </span>
           </div>
           <div dir="ltr" className="mt-1 font-display text-3xl text-foreground sm:text-4xl">{sub.code}</div>
@@ -329,7 +319,7 @@ function FoundResult({ sub, onReset }: { sub: Submission; onReset: () => void })
         </div>
       </div>
 
-      {sub.queue && (
+      {config.track.show_queue_position && sub.queue && (
         <div className="rounded-2xl border border-clay/30 bg-clay/5 p-5 sm:p-6">
           <div className="font-mono text-[10px] uppercase tracking-[0.32em] text-clay">دورك في القائمة</div>
           <div className="mt-2 font-display text-2xl text-foreground sm:text-3xl">
@@ -347,7 +337,7 @@ function FoundResult({ sub, onReset }: { sub: Submission; onReset: () => void })
         <h3 className="mt-1.5 font-display text-xl text-foreground sm:text-2xl">مراحل طلبك</h3>
 
         <ol className="mt-6 space-y-0">
-          {STAGES.map((stage, i) => {
+          {stages.map((stage, i) => {
             const done = i < idx;
             const active = i === idx && sub.status !== "distributed";
             const completed = i <= idx && (i < idx || sub.status === "distributed");
@@ -356,7 +346,7 @@ function FoundResult({ sub, onReset }: { sub: Submission; onReset: () => void })
             return (
               <li key={stage.key} className="relative flex gap-4 pb-6 last:pb-0">
                 {/* connector line */}
-                {i < STAGES.length - 1 && (
+                {i < stages.length - 1 && (
                   <span className={["absolute right-[14px] top-8 -z-0 h-[calc(100%-1.5rem)] w-0.5", lineColor].join(" ")} />
                 )}
                 {/* node */}
@@ -409,11 +399,24 @@ function FoundResult({ sub, onReset }: { sub: Submission; onReset: () => void })
           <div className="min-w-0">
             <div className="font-display text-base text-foreground sm:text-lg">ماذا يحدث الآن</div>
             <p className="mt-1.5 text-[13px] leading-relaxed text-foreground sm:text-sm">
-              {NEXT_STEP[sub.status]}
+              {config.track.next_steps[sub.status]}
             </p>
           </div>
         </div>
       </div>
+
+      {showQr && (
+        <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+          <div className="font-mono text-[10px] uppercase tracking-[0.32em] text-clay">رمز الاستلام</div>
+          <h3 className="mt-1.5 font-display text-xl text-foreground sm:text-2xl">اعرض هذا الرمز عند التوزيع</h3>
+          <PublicQrCard
+            referenceCode={sub.code}
+            requestId={sub.requestId!}
+            instructions={config.qr.track_qr_instructions}
+            compact
+          />
+        </div>
+      )}
 
       {/* SUBMITTED SUMMARY (collapsible) */}
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
@@ -463,28 +466,27 @@ function FoundResult({ sub, onReset }: { sub: Submission; onReset: () => void })
       <div className="rounded-2xl border border-warning/30 bg-warning/5 p-5 sm:p-6">
         <div className="font-display text-base text-foreground sm:text-lg">تذكيرات مهمّة</div>
         <ul className="mt-3 space-y-2 text-[13px] leading-relaxed text-foreground sm:text-sm">
-          <li className="flex gap-2"><span className="text-clay">◆</span> احتفظ برقمك المرجعي — ستحتاج إليه في أي متابعة لاحقة.</li>
-          <li className="flex gap-2"><span className="text-clay">◆</span> تأكّد أن هاتفك متاح — سيتواصل معك الفريق على الرقم الذي قدّمته.</li>
-          <li className="flex gap-2"><span className="text-clay">◆</span> إذا تغيّر وضعك (موقع جديد، حالة طبية طارئة) تواصل معنا فوراً.</li>
-          <li className="flex gap-2"><span className="text-clay">◆</span> قد نتّصل من رقم غير معروف — يرجى الرّد على جميع الاتصالات.</li>
+          {config.track.reminders.map((line) => (
+            <li key={line} className="flex gap-2"><span className="text-clay">◆</span> {line}</li>
+          ))}
         </ul>
       </div>
 
       {/* CONTACT */}
       <div className="rounded-2xl border border-border bg-ink p-5 text-white sm:p-6">
         <div className="font-mono text-[10px] uppercase tracking-[0.32em] text-clay">للتواصل</div>
-        <div className="mt-2 font-display text-lg sm:text-xl">للحالات الإنسانية العاجلة فقط</div>
+        <div className="mt-2 font-display text-lg sm:text-xl">{config.track.contact_heading}</div>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <a href="tel:+96170000000" className="group flex items-center justify-between gap-3 rounded-xl border border-white/15 bg-white/5 px-4 py-3 transition hover:bg-white/10">
+          <a href={phoneToTelHref(config.track.contact_phone)} className="group flex items-center justify-between gap-3 rounded-xl border border-white/15 bg-white/5 px-4 py-3 transition hover:bg-white/10">
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-white/60">اتصال أو واتساب</div>
-              <div dir="ltr" className="mt-1 font-mono text-base text-white">+961 70 000 000</div>
+              <div className="text-[10px] uppercase tracking-wider text-white/60">{config.track.contact_subheading}</div>
+              <div dir="ltr" className="mt-1 font-mono text-base text-white">{config.track.contact_phone}</div>
             </div>
             <span className="text-white/70 transition group-hover:-translate-x-1">←</span>
           </a>
           <div className="rounded-xl border border-white/15 bg-white/5 px-4 py-3">
             <div className="text-[10px] uppercase tracking-wider text-white/60">ساعات العمل</div>
-            <div className="mt-1 text-[13px] text-white sm:text-sm">يومياً ٨ صباحاً — ٨ مساءً</div>
+            <div className="mt-1 text-[13px] text-white sm:text-sm">{config.track.contact_hours}</div>
           </div>
         </div>
       </div>
