@@ -1,15 +1,25 @@
 import { Link, Navigate, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Loader2, LogOut, Menu, X, Bell, Search } from "lucide-react";
+import { Loader2, LogOut, Menu, X, Search } from "lucide-react";
+import { AdminAlertsMenu } from "@/components/admin/AdminAlertsMenu";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { adminRequestsSearchUrl } from "@/lib/admin-global-search";
+import { adminQueryKeys, useAdminNavBadges, type AdminNavBadgeKey } from "@/lib/admin-query";
+import { useAdminMultiQueryRealtime } from "@/lib/use-admin-query-realtime";
 
-const navItems = [
+type NavItem = {
+  to: string;
+  label: string;
+  badgeKey?: AdminNavBadgeKey;
+  adminOnly?: boolean;
+};
+
+const navItems: NavItem[] = [
   { to: "/admin", label: "نظرة عامة" },
-  { to: "/admin/queue", label: "الدور" },
-  { to: "/admin/requests", label: "الطلبات", badge: 5 },
-  { to: "/admin/donations", label: "التبرّعات" },
+  { to: "/admin/queue", label: "الدور", badgeKey: "queue" },
+  { to: "/admin/requests", label: "الطلبات", badgeKey: "requests" },
+  { to: "/admin/donations", label: "التبرّعات", badgeKey: "donations" },
   { to: "/admin/references", label: "قائمة المختارين" },
   { to: "/admin/distribution", label: "التوزيع" },
   { to: "/admin/public-settings", label: "إعدادات الموقع", adminOnly: true },
@@ -118,6 +128,12 @@ export function AdminShell() {
   const navigate = useNavigate();
   const { displayName, initials, roleDisplay, signOut, roles } = useAuth();
   const path = useRouterState({ select: (s) => s.location.pathname });
+  const { badges } = useAdminNavBadges();
+
+  useAdminMultiQueryRealtime("admin-shell-nav", [
+    { table: "aid_requests", queryKeys: [adminQueryKeys.overview()] },
+    { table: "donations", queryKeys: [adminQueryKeys.pendingDonationsCount()] },
+  ]);
 
   // Desktop: collapse to icon rail. Mobile: drawer open/closed.
   const [desktopOpen, setDesktopOpen] = useState(true);
@@ -147,7 +163,7 @@ export function AdminShell() {
     return () => { document.body.style.overflow = ""; };
   }, [mobileOpen]);
 
-  const SidebarInner = ({ collapsed }: { collapsed: boolean }) => (
+  const SidebarInner = ({ collapsed, badges }: { collapsed: boolean; badges: Record<AdminNavBadgeKey, number> }) => (
     <>
       <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-4">
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/20 bg-white/5 font-display">س</span>
@@ -171,6 +187,7 @@ export function AdminShell() {
           .filter((n) => !("adminOnly" in n && n.adminOnly) || roles.includes("admin"))
           .map((n) => {
           const active = n.to === current.to;
+          const badgeCount = n.badgeKey ? badges[n.badgeKey] : 0;
           return (
             <Link
               key={n.to}
@@ -184,8 +201,10 @@ export function AdminShell() {
             >
               <span className={collapsed ? "sr-only" : ""}>{n.label}</span>
               {collapsed && <span className="mx-auto text-[10px] uppercase">{n.label.slice(0, 2)}</span>}
-              {!collapsed && n.badge && (
-                <span className="rounded-full bg-clay px-2 py-0.5 text-[10px] text-white">{n.badge}</span>
+              {!collapsed && badgeCount > 0 && n.badgeKey && (
+                <span className="rounded-full bg-clay px-2 py-0.5 text-[10px] text-white">
+                  {badgeCount > 99 ? "99+" : badgeCount.toLocaleString("ar-EG")}
+                </span>
               )}
             </Link>
           );
@@ -241,7 +260,7 @@ export function AdminShell() {
           desktopOpen ? "w-64" : "w-16",
         ].join(" ")}
       >
-        <SidebarInner collapsed={!desktopOpen} />
+        <SidebarInner collapsed={!desktopOpen} badges={badges} />
       </aside>
 
       {/* MOBILE DRAWER */}
@@ -252,7 +271,7 @@ export function AdminShell() {
             onClick={() => setMobileOpen(false)}
           />
           <aside className="absolute inset-y-0 right-0 flex w-72 max-w-[85vw] flex-col border-l border-sidebar-border bg-sidebar text-sidebar-foreground shadow-2xl animate-in slide-in-from-right">
-            <SidebarInner collapsed={false} />
+            <SidebarInner collapsed={false} badges={badges} />
           </aside>
         </div>
       )}
@@ -278,13 +297,7 @@ export function AdminShell() {
           </div>
           <div className="relative flex shrink-0 items-center gap-2 sm:gap-4">
             <AdminHeaderSearch />
-            <button
-              className="relative grid h-9 w-9 place-items-center rounded-full border border-border bg-background hover:border-clay"
-              aria-label="إشعارات"
-            >
-              <Bell className="h-4 w-4" />
-              <span className="absolute -right-0.5 -top-0.5 grid h-4 w-4 place-items-center rounded-full bg-clay text-[10px] text-white">3</span>
-            </button>
+            <AdminAlertsMenu />
             <span className="hidden h-8 w-8 place-items-center rounded-full bg-clay text-xs text-white sm:grid">
               {initials}
             </span>

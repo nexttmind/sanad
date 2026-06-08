@@ -15,6 +15,7 @@ import { UrgencyBreakdownCard } from "@/components/admin/UrgencyBreakdownCard";
 import { UrgencyHistoryPanel } from "@/components/admin/UrgencyHistoryPanel";
 import { UrgencyOverrideSection } from "@/components/admin/UrgencyOverrideSection";
 import { EditableRequestSections } from "@/components/admin/EditableRequestSections";
+import { AdminActionModal } from "@/components/admin/AdminActionModal";
 import { logAdminAction } from "@/lib/audit-log";
 import {
   fetchQueuePosition,
@@ -30,6 +31,7 @@ import {
 } from "@/lib/submission-reference";
 import type { AidRowExtended, FileRowExtended } from "@/lib/request-detail-types";
 import { fetchUrgencyScoreHistory, type UrgencyHistoryRow } from "@/lib/urgency-history";
+import { RequestLifecycleTimeline } from "@/components/admin/RequestLifecycleTimeline";
 
 type Note = Database["public"]["Tables"]["aid_request_notes"]["Row"];
 type History = Database["public"]["Tables"]["aid_request_history"]["Row"];
@@ -110,6 +112,7 @@ function Detail() {
   const [loading, setLoading] = useState(true);
   const [newNote, setNewNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const [rejectOpen, setRejectOpen] = useState(false);
 
   const load = useCallback(async () => {
     const [r, n, h, f, ref, urgHist] = await Promise.all([
@@ -249,11 +252,6 @@ function Detail() {
     setSaving(false);
   };
 
-  const openFile = async (file: FileRowExtended) => {
-    const { data } = await supabase.storage.from(file.bucket).createSignedUrl(file.storage_path, 300);
-    if (data?.signedUrl) window.open(data.signedUrl, "_blank");
-  };
-
   if (loading) return <div className="p-8 text-sm text-muted-foreground">جارٍ التحميل...</div>;
   if (!s) return <div className="p-8 text-sm text-muted-foreground">لم يتم العثور على هذا الطلب.</div>;
 
@@ -285,10 +283,7 @@ function Detail() {
           </button>
           <button
             disabled={saving}
-            onClick={() => {
-              const reason = window.prompt("سبب الرفض؟") ?? "";
-              if (reason) updateStatus("rejected", reason);
-            }}
+            onClick={() => setRejectOpen(true)}
             className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-1.5 text-xs text-destructive hover:bg-destructive/20 disabled:opacity-50"
           >
             رفض
@@ -423,27 +418,17 @@ function Detail() {
               actorName={displayName}
               userId={user.id}
               onChanged={() => void load()}
-              onOpen={(f) => void openFile(f)}
             />
           )}
 
           <Card title="السجل الزمني">
-            <ol className="space-y-3 text-sm">
-              {history.length === 0 && <li className="text-xs text-muted-foreground">لا يوجد.</li>}
-              {history.map((h) => (
-                <li key={h.id} className="flex gap-3">
-                  <span className="mt-1.5 h-2 w-2 rounded-full bg-clay" />
-                  <div className="flex-1">
-                    <div>
-                      {h.from_status ? `${STATUS_AR[h.from_status]} → ` : ""}
-                      {STATUS_AR[h.to_status]}
-                    </div>
-                    <div className="text-xs text-muted-foreground">{timeAgo(h.created_at)}</div>
-                    {h.reason && <div className="text-xs text-destructive">{h.reason}</div>}
-                  </div>
-                </li>
-              ))}
-            </ol>
+            <RequestLifecycleTimeline
+              history={history}
+              submittedAt={s.created_at}
+              currentStatus={s.status}
+              statusLabels={STATUS_AR}
+              timeAgo={timeAgo}
+            />
           </Card>
 
           <Card title="ملاحظات إدارية">
@@ -565,6 +550,39 @@ function Detail() {
           )}
         </div>
       </div>
+
+      <AdminActionModal
+        open={rejectOpen}
+        title="رفض الطلب"
+        description="يُسجَّل سبب الرفض في سجل الطلب ويظهر للمراجعين."
+        preview={
+          s
+            ? [
+                { label: "الاسم", value: s.full_name },
+                { label: "الرمز", value: <span dir="ltr" className="font-mono">{s.reference_code}</span> },
+                { label: "الحالة الحالية", value: STATUS_AR[s.status] },
+              ]
+            : undefined
+        }
+        cannedReasons={[
+          "معلومات غير مكتملة",
+          "وثيقة غير صالحة أو غير واضحة",
+          "تكرار طلب",
+          "المرجع رفض التأكيد",
+          "لا يستوفي شروط المساعدة",
+        ]}
+        reasonLabel="سبب الرفض"
+        reasonPlaceholder="اشرح سبب الرفض للفريق..."
+        requireReason
+        confirmLabel="رفض الطلب"
+        variant="destructive"
+        busy={saving}
+        onClose={() => setRejectOpen(false)}
+        onConfirm={async ({ reason }) => {
+          await updateStatus("rejected", reason);
+          setRejectOpen(false);
+        }}
+      />
     </div>
   );
 }

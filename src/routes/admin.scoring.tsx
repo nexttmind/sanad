@@ -2,6 +2,7 @@ import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { ScoringPreviewPanel } from "@/components/admin/ScoringPreviewPanel";
+import { ScoringTierDistribution } from "@/components/admin/ScoringTierDistribution";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAdminAction } from "@/lib/audit-log";
 import {
@@ -24,6 +25,7 @@ const CATEGORY_ORDER: CategoryKey[] = [
   "displacement",
   "household",
   "reference",
+  "financial",
 ];
 
 const CATEGORY_WEIGHT_FIELDS: Record<CategoryKey, { key: string; label: string }[]> = {
@@ -39,6 +41,7 @@ const CATEGORY_WEIGHT_FIELDS: Record<CategoryKey, { key: string; label: string }
     { key: "medicine_need", label: "نقص أدوية" },
     { key: "chronic_illness", label: "مرض مزمن" },
     { key: "disabled", label: "إعاقة" },
+    { key: "critical_medication", label: "دواء حرج" },
   ],
   dependents: [
     { key: "infants", label: "رضّع" },
@@ -51,6 +54,7 @@ const CATEGORY_WEIGHT_FIELDS: Record<CategoryKey, { key: string; label: string }
     { key: "displaced_7d", label: "تشريد خلال ٧ أيام" },
     { key: "displaced_30d", label: "تشريد خلال ٣٠ يوماً" },
     { key: "displaced_90d", label: "تشريد خلال ٩٠ يوماً" },
+    { key: "displaced_180d", label: "تشريد خلال ١٨٠ يوماً" },
   ],
   household: [
     { key: "family_8plus", label: "عائلة ٨+ أفراد" },
@@ -59,7 +63,12 @@ const CATEGORY_WEIGHT_FIELDS: Record<CategoryKey, { key: string; label: string }
   ],
   reference: [
     { key: "reference_confirmed", label: "مرجع مؤكّد" },
+    { key: "verified_mukhtar", label: "مختار موثّق" },
     { key: "reference_denied", label: "مرجع مرفوض" },
+  ],
+  financial: [
+    { key: "eviction_risk", label: "خطر إخلاء" },
+    { key: "debt_critical", label: "ديون حرجة" },
   ],
 };
 
@@ -73,6 +82,7 @@ function ScoringConfigPage() {
   const [recalcProgress, setRecalcProgress] = useState<{ done: number; total: number } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [previewKey, setPreviewKey] = useState(0);
+  const [tierKey, setTierKey] = useState(0);
 
   useEffect(() => {
     void (async () => {
@@ -161,6 +171,7 @@ function ScoringConfigPage() {
       });
       setMessage(`تم إعادة احتساب ${result.processed.toLocaleString("ar-EG")} طلباً.`);
       setPreviewKey((k) => k + 1);
+      setTierKey((k) => k + 1);
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "فشل إعادة الاحتساب");
     } finally {
@@ -216,7 +227,7 @@ function ScoringConfigPage() {
                       <span className="text-muted-foreground">{signal.label}</span>
                       <input
                         type="number"
-                        min={0}
+                        min={signal.key === "reference_denied" ? -100 : 0}
                         max={100}
                         value={rules.categories[key]?.weights?.[signal.key] ?? 0}
                         onChange={(e) =>
@@ -283,6 +294,7 @@ function ScoringConfigPage() {
         </div>
       )}
 
+      <ScoringTierDistribution key={tierKey} />
       <ScoringPreviewPanel key={previewKey} />
     </div>
   );

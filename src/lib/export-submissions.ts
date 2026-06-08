@@ -1,5 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { AppRole } from "@/lib/auth";
+import { logAdminAction } from "@/lib/audit-log";
+import type { AidRowExtended } from "@/lib/request-detail-types";
 import { buildFiltersJson, type SubmissionFilters } from "@/lib/submissions-list";
 
 export type ExportColumnKey =
@@ -295,4 +297,58 @@ export async function ensureExportJobStored(jobId: string): Promise<void> {
 export function exportFilename(prefix = "sanad-submissions"): string {
   const stamp = new Date().toISOString().slice(0, 10);
   return `${prefix}-${stamp}.csv`;
+}
+
+function csvEscape(value: unknown): string {
+  const s = value == null ? "" : String(value);
+  if (s.includes(",") || s.includes('"') || s.includes("\n")) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
+
+function rowExportValue(row: AidRowExtended, key: ExportColumnKey): string {
+  switch (key) {
+    case "needs":
+      return csvEscape(Array.isArray(row.needs) ? row.needs.join("; ") : "");
+    case "flags":
+      return csvEscape(Array.isArray(row.flags) ? row.flags.join("; ") : "");
+    default: {
+      const raw = row[key as keyof AidRowExtended];
+      return csvEscape(raw);
+    }
+  }
+}
+
+export function buildSelectedSubmissionsCsv(
+  rows: AidRowExtended[],
+  columns: ExportColumnKey[],
+): string {
+  const labelByKey = new Map(EXPORT_COLUMNS.map((c) => [c.key, c.label]));
+  const header = columns.map((k) => csvEscape(labelByKey.get(k) ?? k)).join(",");
+  const body = rows.map((row) => columns.map((k) => rowExportValue(row, k)).join(","));
+  return `\uFEFF${[header, ...body].join("\n")}`;
+}
+
+export async function exportSelectedSubmissions(opts: {
+  rows: AidRowExtended[];
+  columns: ExportColumnKey[];
+  actorName: string;
+}): Promise<void> {
+  if (opts.rows.length === 0) return;
+  const csv = buildSelectedSubmissionsCsv(opts.rows, opts.columns);
+  downloadCsv(csv, exportFilename("sanad-selected"));
+  await logAdminAction({
+    action: "export_csv",
+    newValue: {
+      selected_count: opts.rows.length,
+      columns: opts.columns,
+      bulk: true,
+    },
+    metadata: {
+      row_count: opts.rows.length,
+      reference_codes: opts.rows.map((r) => r.reference_code),
+    },
+    actorName: opts.actorName,
+  });
 }

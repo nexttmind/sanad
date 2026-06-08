@@ -16,7 +16,6 @@ export type PrecheckResult =
       allowed: false;
       reason: PrecheckReason;
       message: string;
-      reference_code?: string | null;
     }
   | { ok: false; message: string };
 
@@ -51,6 +50,5 @@ export async function precheckAidSubmission(params: {
     allowed: false,
     reason: data.reason ?? "invalid_phone",
     message: data.message ?? "تعذّر إرسال الطلب.",
-    reference_code: data.reference_code,
   };
 }

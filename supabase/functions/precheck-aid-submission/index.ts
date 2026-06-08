@@ -164,7 +164,7 @@ async function assertPrecheckRateLimits(
     });
     if (error) {
       console.error("[precheck-aid-submission] check_rate_limit:", error);
-      return null;
+      throw error;
     }
     const row = (data ?? {}) as RateLimitRow;
     if (row.allowed === false) {
@@ -262,7 +262,6 @@ Deno.serve(async (req) => {
       allowed,
       reason: row.reason ?? null,
       message: row.message_ar ?? null,
-      reference_code: row.existing_reference_code ?? null,
     }, 200);
   } catch (err) {
     console.error("[precheck-aid-submission] unexpected:", err);

@@ -2,6 +2,7 @@ import {
   CATEGORY_LABELS,
   parseUrgencyBreakdown,
   reasonLabel,
+  tierFromScore,
   TIER_BADGE_CLASS,
   TIER_LABELS,
   type CategoryKey,
@@ -38,7 +39,7 @@ export function UrgencyBreakdownCard({
 }: Props) {
   const parsed = parseUrgencyBreakdown(breakdown);
   const displayScore = effectiveUrgency ?? urgencyScore;
-  const tier = (urgencyTier ?? parsed?.tier ?? "medium") as UrgencyTier;
+  const tier = (urgencyTier ?? tierFromScore(displayScore)) as UrgencyTier;
   const tierLabel = TIER_LABELS[tier] ?? tier;
   const tierClass = TIER_BADGE_CLASS[tier] ?? TIER_BADGE_CLASS.medium;
 

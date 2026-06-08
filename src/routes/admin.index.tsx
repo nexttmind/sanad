@@ -1,12 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
 import {
-  fetchAdminOverviewStats,
   type AdminOverviewPendingRow,
   type AdminOverviewRecentRow,
-  type AdminOverviewStats,
 } from "@/lib/admin-overview";
-import { useAdminTableRealtime } from "@/lib/use-admin-realtime";
+import { adminQueryKeys, useAdminOverviewStats } from "@/lib/admin-query";
+import { useAdminQueryRealtime } from "@/lib/use-admin-query-realtime";
 import {
   TIER_BADGE_CLASS,
   TIER_LABELS,
@@ -40,22 +38,9 @@ const STATUS_LABELS: { key: DbStatus; label: string }[] = [
 ];
 
 function Overview() {
-  const [stats, setStats] = useState<AdminOverviewStats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: stats, isLoading: loading } = useAdminOverviewStats();
 
-  const load = useCallback(async () => {
-    const data = await fetchAdminOverviewStats();
-    setStats(data);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  useAdminTableRealtime("admin-overview", "aid_requests", () => {
-    void load();
-  });
+  useAdminQueryRealtime("admin-overview", "aid_requests", [adminQueryKeys.overview()]);
 
   const statusCount = (s: DbStatus) => stats?.status_counts[s] ?? 0;
 
@@ -73,6 +58,7 @@ function Overview() {
           label: "حالات حرجة معلّقة",
           count: stats.alerts.critical,
           tone: "bg-destructive/15 text-destructive border-destructive/30",
+          requestsSearch: { status: "submitted", urgency_min: "85", sort: "effective_urgency", dir: "desc" },
         },
         {
           label: "قيد الدور",
@@ -94,26 +80,31 @@ function Overview() {
           label: "رضّع لم تتم مراجعتهم",
           count: stats.alerts.infants_pending,
           tone: "bg-warning/15 text-warning border-warning/40",
+          requestsSearch: { status: "submitted", sort: "created_at", dir: "asc" },
         },
         {
           label: "ذوو احتياجات معلّقون",
           count: stats.alerts.disabled_pending,
           tone: "bg-warning/15 text-warning border-warning/40",
+          requestsSearch: { status: "submitted", sort: "effective_urgency", dir: "desc" },
         },
         {
           label: "مدارس/مأوى معلّقة",
           count: stats.alerts.shelter_pending,
           tone: "bg-clay/15 text-clay border-clay/40",
+          requestsSearch: { status: "submitted", sort: "effective_urgency", dir: "desc" },
         },
         {
           label: "احتيال مرتفع",
           count: stats.alerts.high_risk,
           tone: "bg-destructive/15 text-destructive border-destructive/30",
+          requestsSearch: { risk: "fraud", sort: "trust_score", dir: "asc" },
         },
         {
           label: "موسومة",
           count: stats.alerts.flagged,
           tone: "bg-warning/15 text-warning border-warning/40",
+          requestsSearch: { flags: "1", sort: "created_at", dir: "desc" },
         },
       ]
     : [];
@@ -136,6 +127,13 @@ function Overview() {
 
   const topPending: AdminOverviewPendingRow[] = stats?.top_pending ?? [];
   const recentRows: AdminOverviewRecentRow[] = stats?.recent ?? [];
+
+  const pipeline = STATUS_LABELS.map(({ key, label }) => ({
+    key,
+    label,
+    count: statusCount(key),
+  }));
+  const pipelineMax = Math.max(1, ...pipeline.map((p) => p.count));
 
   return (
     <div className="space-y-10">
@@ -169,12 +167,44 @@ function Overview() {
               >
                 {inner}
               </Link>
+            ) : "requestsSearch" in a && a.requestsSearch ? (
+              <Link
+                key={a.label}
+                to="/admin/requests"
+                search={a.requestsSearch}
+                className={["rounded-full border px-4 py-2 text-xs transition hover:opacity-80", a.tone].join(" ")}
+              >
+                {inner}
+              </Link>
             ) : (
               <span key={a.label} className={["rounded-full border px-4 py-2 text-xs", a.tone].join(" ")}>
                 {inner}
               </span>
             );
           })}
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-border bg-card p-5">
+        <div className="font-display text-base">مسار معالجة الطلبات</div>
+        <p className="mt-1 text-xs text-muted-foreground">توزيع الطلبات حسب الحالة الحالية</p>
+        <div className="mt-4 space-y-3">
+          {loading && <p className="text-sm text-muted-foreground">جارٍ التحميل...</p>}
+          {!loading &&
+            pipeline.map(({ key, label, count }) => (
+              <div key={key}>
+                <div className="flex justify-between text-xs">
+                  <span>{label}</span>
+                  <span className="font-mono">{count.toLocaleString("ar-EG")}</span>
+                </div>
+                <div className="mt-1 h-2 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full bg-clay/80"
+                    style={{ width: `${(count / pipelineMax) * 100}%` }}
+                  />
+                </div>
+              </div>
+            ))}
         </div>
       </div>
 

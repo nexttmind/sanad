@@ -71,7 +71,17 @@ describe("scoring", () => {
   it("reasonLabel falls back to code", () => {
     expect(reasonLabel("school_shelter")).toContain("مدرس");
     expect(reasonLabel("reference_denied")).toContain("−10");
+    expect(reasonLabel("critical_medication")).toContain("حرج");
+    expect(reasonLabel("displaced_180d")).toContain("180");
+    expect(reasonLabel("verified_mukhtar")).toContain("مختار");
+    expect(reasonLabel("eviction_risk")).toContain("إخلاء");
+    expect(reasonLabel("debt_critical")).toContain("ديون");
     expect(reasonLabel("unknown_code")).toBe("unknown_code");
+  });
+
+  it("tierFromScore aligns with effective urgency display", () => {
+    expect(tierFromScore(92)).toBe("critical");
+    expect(tierFromScore(50)).toBe("medium");
   });
 });
 

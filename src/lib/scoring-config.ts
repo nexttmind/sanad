@@ -18,7 +18,7 @@ export type ScoringConfigRules = {
 
 const DEFAULT_SCORING_CONFIG_RULES: ScoringConfigRules = {
   version: 1,
-  raw_max: 105,
+  raw_max: 117,
   priority_override_floor: 85,
   categories: {
     shelter: {
@@ -38,6 +38,7 @@ const DEFAULT_SCORING_CONFIG_RULES: ScoringConfigRules = {
         medicine_need: 15,
         chronic_illness: 10,
         disabled: 10,
+        critical_medication: 20,
       },
     },
     dependents: {
@@ -56,6 +57,7 @@ const DEFAULT_SCORING_CONFIG_RULES: ScoringConfigRules = {
         displaced_7d: 15,
         displaced_30d: 10,
         displaced_90d: 5,
+        displaced_180d: 2,
       },
     },
     household: {
@@ -67,10 +69,18 @@ const DEFAULT_SCORING_CONFIG_RULES: ScoringConfigRules = {
       },
     },
     reference: {
-      max: 5,
+      max: 15,
       weights: {
-        reference_confirmed: 5,
+        reference_confirmed: 10,
+        verified_mukhtar: 15,
         reference_denied: -10,
+      },
+    },
+    financial: {
+      max: 12,
+      weights: {
+        eviction_risk: 12,
+        debt_critical: 8,
       },
     },
   },
@@ -140,6 +150,7 @@ function normalizeScoringConfigRules(raw: unknown): ScoringConfigRules {
       displacement: normalizeCategoryRules(categoriesRaw.displacement, DEFAULT_SCORING_CONFIG_RULES.categories.displacement),
       household: normalizeCategoryRules(categoriesRaw.household, DEFAULT_SCORING_CONFIG_RULES.categories.household),
       reference: normalizeCategoryRules(categoriesRaw.reference, DEFAULT_SCORING_CONFIG_RULES.categories.reference),
+      financial: normalizeCategoryRules(categoriesRaw.financial, DEFAULT_SCORING_CONFIG_RULES.categories.financial),
     },
   };
 }
@@ -161,6 +172,14 @@ export type ScoringPreviewSample = {
   urgency_tier: string | null;
   urgency_breakdown: UrgencyBreakdown | null;
   created_at: string;
+};
+
+export type ScoringTierDistribution = {
+  critical: number;
+  high: number;
+  medium: number;
+  low: number;
+  total: number;
 };
 
 export type BulkRecalcBatchResult = {
@@ -207,11 +226,24 @@ function parsePreviewSample(raw: unknown): ScoringPreviewSample | null {
   };
 }
 
-export async function fetchScoringPreviewSamples(limit = 3): Promise<ScoringPreviewSample[]> {
+export async function fetchScoringPreviewSamples(limit = 20): Promise<ScoringPreviewSample[]> {
   const { data, error } = await supabase.rpc("get_scoring_preview_samples", { _limit: limit });
   if (error) throw error;
   if (!Array.isArray(data)) return [];
   return data.map(parsePreviewSample).filter((s): s is ScoringPreviewSample => s != null);
+}
+
+export async function fetchScoringTierDistribution(): Promise<ScoringTierDistribution> {
+  const { data, error } = await supabase.rpc("get_scoring_tier_distribution");
+  if (error) throw error;
+  const d = (data ?? {}) as Record<string, unknown>;
+  return {
+    critical: Number(d.critical ?? 0),
+    high: Number(d.high ?? 0),
+    medium: Number(d.medium ?? 0),
+    low: Number(d.low ?? 0),
+    total: Number(d.total ?? 0),
+  };
 }
 
 export async function bulkRecalculateBatch(

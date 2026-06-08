@@ -34,7 +34,7 @@ describe("distribution supabase flows", () => {
             family_size: 4,
             needs: [],
             status: "approved",
-            qr_pin: "1234",
+            qr_pin: "123456",
           },
           error: null,
         });
@@ -48,7 +48,7 @@ describe("distribution supabase flows", () => {
 
     const result = await completeDistribution({
       requestId: "req-1",
-      pin: "0000",
+      pin: "000000",
       eventId: null,
       eventLocation: "صور",
       scannedBy: "admin-1",
@@ -58,7 +58,7 @@ describe("distribution supabase flows", () => {
     if (!result.ok) expect(result.code).toBe("bad_pin");
     expect(supabase.rpc).toHaveBeenCalledWith("verify_distribution_pin", {
       _request_id: "req-1",
-      _pin: "0000",
+      _pin: "000000",
     });
   });
 
@@ -73,7 +73,7 @@ describe("distribution supabase flows", () => {
             family_size: 4,
             needs: [],
             status: "approved",
-            qr_pin: "1234",
+            qr_pin: "123456",
           },
           error: null,
         });
@@ -91,7 +91,7 @@ describe("distribution supabase flows", () => {
 
     const result = await completeDistribution({
       requestId: "req-1",
-      pin: "0000",
+      pin: "000000",
       eventId: null,
       eventLocation: "صور",
       scannedBy: "admin-1",
@@ -118,7 +118,7 @@ describe("distribution supabase flows", () => {
               family_size: 4,
               needs: [],
               status: "approved",
-              qr_pin: "1234",
+              qr_pin: "123456",
             },
             error: null,
           });
@@ -134,7 +134,7 @@ describe("distribution supabase flows", () => {
 
     const result = await completeDistribution({
       requestId: "req-1",
-      pin: "1234",
+      pin: "123456",
       eventId: "evt-1",
       eventLocation: "صور",
       scannedBy: "admin-1",

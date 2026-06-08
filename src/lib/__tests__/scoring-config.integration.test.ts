@@ -9,6 +9,7 @@ import {
   bulkRecalculateBatch,
   fetchActiveScoringConfig,
   fetchScoringPreviewSamples,
+  fetchScoringTierDistribution,
   saveScoringConfig,
   type ScoringConfigRules,
 } from "@/lib/scoring-config";
@@ -102,10 +103,22 @@ describe("scoring-config supabase flows", () => {
       error: null,
     });
 
-    const samples = await fetchScoringPreviewSamples(3);
+    const samples = await fetchScoringPreviewSamples(20);
     expect(samples).toHaveLength(1);
     expect(samples[0]?.reference_code).toBe("SND-1");
-    expect(supabase.rpc).toHaveBeenCalledWith("get_scoring_preview_samples", { _limit: 3 });
+    expect(supabase.rpc).toHaveBeenCalledWith("get_scoring_preview_samples", { _limit: 20 });
+  });
+
+  it("fetchScoringTierDistribution parses tier counts", async () => {
+    supabase.rpc.mockResolvedValue({
+      data: { critical: 2, high: 5, medium: 10, low: 3, total: 20 },
+      error: null,
+    });
+
+    const dist = await fetchScoringTierDistribution();
+    expect(dist.total).toBe(20);
+    expect(dist.critical).toBe(2);
+    expect(supabase.rpc).toHaveBeenCalledWith("get_scoring_tier_distribution");
   });
 
   it("bulkRecalculateBatch parses batch response", async () => {

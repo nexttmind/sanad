@@ -8,7 +8,8 @@ export type CategoryKey =
   | "dependents"
   | "displacement"
   | "household"
-  | "reference";
+  | "reference"
+  | "financial";
 
 export type CategoryBreakdown = {
   points: number;
@@ -33,6 +34,7 @@ export const CATEGORY_LABELS: Record<CategoryKey, string> = {
   displacement: "النزوح",
   household: "حجم الأسرة",
   reference: "المرجع",
+  financial: "المالي",
 };
 
 export const REASON_LABELS: Record<string, string> = {
@@ -57,7 +59,12 @@ export const REASON_LABELS: Record<string, string> = {
   family_6plus: "أسرة 6+",
   family_4plus: "أسرة 4+",
   reference_confirmed: "مرجع مؤكّد",
+  verified_mukhtar: "مختار موثّق",
   reference_denied: "مرجع رفض (−10)",
+  critical_medication: "دواء حرج (أنسولين / غسيل / أكسجين)",
+  displaced_180d: "نزوح ≤ 180 يوماً",
+  eviction_risk: "خطر إخلاء / طرد",
+  debt_critical: "ديون حرجة",
 };
 
 export const TIER_LABELS: Record<UrgencyTier, string> = {

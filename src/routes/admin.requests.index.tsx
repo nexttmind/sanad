@@ -1,28 +1,38 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAdminTableRealtime } from "@/lib/use-admin-realtime";
+import { Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { AdminActionModal } from "@/components/admin/AdminActionModal";
+import {
+  bulkAddTagToRequests,
+  bulkAssignRequests,
+  bulkUpdateRequestStatus,
+} from "@/lib/bulk-request-actions";
+import { canExport, exportSelectedSubmissions, loadSavedExportColumns, resolveExportColumns, saveExportColumns, type ExportColumnKey } from "@/lib/export-submissions";
+import { staffMapById } from "@/lib/admin-staff";
+import { useAdminFilterTags, useAdminStaff, adminQueryKeys } from "@/lib/admin-query";
+import { useAdminQueryRealtime } from "@/lib/use-admin-query-realtime";
+import {
+  invalidateSubmissionsListQueries,
+  useSubmissionsList,
+  useSubmissionsListDerived,
+} from "@/lib/use-submissions-list-query";
+import { matchQuickFilter, quickFilterPresets, type QuickFilterId } from "@/lib/request-quick-filters";
 import type { Database } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { ExportSubmissionsModal } from "@/components/admin/ExportSubmissionsModal";
 import { SavedViewsDropdown } from "@/components/admin/SavedViewsDropdown";
-import { canExport, loadSavedExportColumns, resolveExportColumns, saveExportColumns, type ExportColumnKey } from "@/lib/export-submissions";
-import { fetchStaffMembers, staffMapById, type StaffMember } from "@/lib/admin-staff";
 import type { AidRowExtended, FileRowExtended } from "@/lib/request-detail-types";
 import { formatQueueNumber } from "@/lib/queue";
 import {
-  fetchFilterTags,
   GOVERNORATE_OPTIONS,
-  listSubmissions,
   loadSavedPageSize,
   PAGE_SIZE_OPTIONS,
   parseSortFromSearch,
   savePageSize,
   SORT_FIELD_LABELS,
   REFERENCE_RESULT_FILTER_OPTIONS,
-  type FilterTag,
   type ReferenceResultFilter,
-  type ListCursor,
   type PageSize,
   type SortField,
   type SubmissionFilters,
@@ -76,6 +86,14 @@ const statusColor: Record<DbStatus, string> = {
   on_hold: "bg-warning/15 text-warning border-warning/40",
 };
 
+const BULK_STATUS_OPTIONS: { value: DbStatus; label: string }[] = [
+  { value: "reviewing", label: "قيد المراجعة" },
+  { value: "on_hold", label: "معلّق" },
+  { value: "approved", label: "موافق عليه" },
+  { value: "rejected", label: "مرفوض" },
+  { value: "distributed", label: "تم التوزيع" },
+];
+
 const NEEDS_OPTIONS = [
   "طعام",
   "ملابس",
@@ -105,30 +123,33 @@ export const Route = createFileRoute("/admin/requests/")({
     sort: typeof search.sort === "string" ? search.sort : undefined,
     dir: typeof search.dir === "string" ? search.dir : undefined,
     q: typeof search.q === "string" ? search.q : undefined,
+    status: typeof search.status === "string" ? search.status : undefined,
+    tier: typeof search.tier === "string" ? search.tier : undefined,
+    risk: typeof search.risk === "string" ? search.risk : undefined,
+    urgency_min: typeof search.urgency_min === "string" ? search.urgency_min : undefined,
+    flags: search.flags === "1" ? "1" : undefined,
   }) as {
     sort?: string;
     dir?: string;
     q?: string;
+    status?: string;
+    tier?: string;
+    risk?: string;
+    urgency_min?: string;
+    flags?: string;
   },
 });
 
 function RequestsList() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const search = Route.useSearch();
-  const { displayName, roles } = useAuth();
+  const { displayName, roles, user } = useAuth();
   const sort = useMemo(
     () => parseSortFromSearch(new URLSearchParams(search as Record<string, string>)),
     [search],
   );
 
-  const [rows, setRows] = useState<Row[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [nextCursor, setNextCursor] = useState<ListCursor | null>(null);
-  const [filesByRequest, setFilesByRequest] = useState<Record<string, FileRowExtended[]>>({});
-  const [staffNames, setStaffNames] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [showExport, setShowExport] = useState(false);
   const [exportColumns, setExportColumns] = useState<ExportColumnKey[]>(() => loadSavedExportColumns());
 
@@ -141,8 +162,8 @@ function RequestsList() {
   const [tagIds, setTagIds] = useState<string[]>([]);
   const [createdFrom, setCreatedFrom] = useState("");
   const [createdTo, setCreatedTo] = useState("");
-  const [allTags, setAllTags] = useState<FilterTag[]>([]);
-  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const { data: allTags = [] } = useAdminFilterTags();
+  const { data: staff = [] } = useAdminStaff();
   const [pageSize, setPageSize] = useState<PageSize>(() => loadSavedPageSize());
 
   const [assignFilter, setAssignFilter] = useState<"all" | "unassigned" | string>("all");
@@ -155,6 +176,14 @@ function RequestsList() {
   const [hasFlags, setHasFlags] = useState(false);
   const [needs, setNeeds] = useState<string[]>([]);
   const [referenceResult, setReferenceResult] = useState<ReferenceResultFilter | "all">("all");
+
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [bulkReviewerId, setBulkReviewerId] = useState("");
+  const [bulkStatus, setBulkStatus] = useState<DbStatus>("reviewing");
+  const [bulkTagId, setBulkTagId] = useState("");
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkMessage, setBulkMessage] = useState<string | null>(null);
+  const [bulkRejectOpen, setBulkRejectOpen] = useState(false);
 
   const filters: SubmissionFilters = useMemo(
     () => ({
@@ -202,82 +231,173 @@ function RequestsList() {
   );
 
   useEffect(() => {
-    void Promise.all([
-      fetchFilterTags().then(setAllTags).catch(() => setAllTags([])),
-      fetchStaffMembers().then(setStaff).catch(() => setStaff([])),
-    ]);
-  }, []);
-
-  useEffect(() => {
     if (search.q) setQ(search.q);
   }, [search.q]);
+
+  useEffect(() => {
+    if (search.status) setStatus(search.status as DbStatus | "all");
+    if (search.tier) setTier(search.tier as UrgencyTier | "all");
+    if (search.risk) setRisk(search.risk as typeof risk);
+    if (search.urgency_min) setUrgencyMin(search.urgency_min);
+    if (search.flags === "1") setHasFlags(true);
+  }, [search.status, search.tier, search.risk, search.urgency_min, search.flags]);
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedQ(q.trim()), 300);
     return () => window.clearTimeout(t);
   }, [q]);
 
-  const loadFilesAndStaff = async (requestIds: string[]) => {
-    const [filesRes, staff] = await Promise.all([
-      requestIds.length
-        ? supabase
-            .from("aid_request_files")
-            .select("id, request_id, doc_admin_verified, doc_rejection_reason")
-            .in("request_id", requestIds)
-        : Promise.resolve({ data: [] as FileRowExtended[] }),
-      fetchStaffMembers().catch(() => []),
-    ]);
-    const fileRows = (filesRes.data as FileRowExtended[] | null) ?? [];
-    const byRequest: Record<string, FileRowExtended[]> = {};
-    for (const f of fileRows) {
-      if (!byRequest[f.request_id]) byRequest[f.request_id] = [];
-      byRequest[f.request_id].push(f);
-    }
-    setFilesByRequest((prev) => ({ ...prev, ...byRequest }));
-    setStaffNames(staffMapById(staff));
-  };
+  const staffNames = useMemo(() => staffMapById(staff), [staff]);
 
-  const loadPage = useCallback(
-    async (append = false, cursor: ListCursor | null = null) => {
-      setLoadError(null);
-      try {
-        const result = await listSubmissions(filters, sort, cursor, pageSize);
-        setRows((prev) => (append ? [...prev, ...result.rows] : result.rows));
-        setTotalCount(result.totalCount);
-        setNextCursor(result.nextCursor);
-        await loadFilesAndStaff(result.rows.map((r) => r.id));
-      } catch (err) {
-        if (!append) {
-          setRows([]);
-          setTotalCount(0);
-          setNextCursor(null);
-        }
-        setLoadError(err instanceof Error ? err.message : "تعذّر تحميل الطلبات");
+  const listQuery = useSubmissionsList(filters, sort, pageSize);
+  const { rows, totalCount, filesByRequest } = useSubmissionsListDerived(listQuery);
+  const loading = listQuery.isLoading;
+  const loadingMore = listQuery.isFetchingNextPage;
+  const loadError = listQuery.error instanceof Error ? listQuery.error.message : listQuery.error ? "تعذّر تحميل الطلبات" : null;
+  const hasNextPage = listQuery.hasNextPage;
+
+  useAdminQueryRealtime("admin-requests", "aid_requests", [[...adminQueryKeys.all, "submissions"]]);
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+    setBulkMessage(null);
+  }, [filters, sort, pageSize]);
+
+  const activeQuickFilter = useMemo(() => {
+    for (const preset of quickFilterPresets(user?.id)) {
+      if (
+        matchQuickFilter(preset.id, user?.id, {
+          filters,
+          assignFilter,
+          status,
+          createdTo,
+          urgencyMin,
+        })
+      ) {
+        return preset.id;
       }
-    },
-    [filters, sort, pageSize],
-  );
+    }
+    return null;
+  }, [user?.id, filters, assignFilter, status, createdTo, urgencyMin]);
+
+  const applyQuickFilter = (id: QuickFilterId) => {
+    const preset = quickFilterPresets(user?.id).find((p) => p.id === id);
+    if (!preset || (id === "my_review" && !user?.id)) return;
+    setCreatedFrom("");
+    setCreatedTo(preset.filters.created_to ?? "");
+    setUrgencyMin(preset.filters.urgency_min != null ? String(preset.filters.urgency_min) : "");
+    setUrgencyMax("");
+    setStatus((preset.filters.status as DbStatus | undefined) ?? "all");
+    if (preset.filters.assignFilter && preset.filters.assignFilter !== "all") {
+      setAssignFilter(preset.filters.assignFilter);
+    } else {
+      setAssignFilter("all");
+    }
+  };
 
   const handlePageSizeChange = (size: PageSize) => {
     setPageSize(size);
     savePageSize(size);
   };
 
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      setLoading(true);
-      await loadPage(false, null);
-      if (alive) setLoading(false);
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [loadPage]);
+  const selectedCount = selectedIds.size;
+  const pickedRows = useMemo(
+    () => rows.filter((r) => selectedIds.has(r.id)),
+    [rows, selectedIds],
+  );
+  const allVisibleSelected = rows.length > 0 && rows.every((r) => selectedIds.has(r.id));
 
-  useAdminTableRealtime("admin-requests", "aid_requests", () => {
-    void loadPage(false, null);
-  });
+  const toggleAllVisible = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) {
+        for (const r of rows) next.delete(r.id);
+      } else {
+        for (const r of rows) next.add(r.id);
+      }
+      return next;
+    });
+  };
+
+  const toggleOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const clearSelection = () => {
+    setSelectedIds(new Set());
+    setBulkMessage(null);
+  };
+
+  const runBulkAction = async (action: () => Promise<{ ok: boolean; message?: string; updated?: number }>) => {
+    setBulkBusy(true);
+    setBulkMessage(null);
+    const result = await action();
+    if (!result.ok) {
+      setBulkMessage(result.message ?? "تعذّر تنفيذ العملية.");
+    } else {
+      setSelectedIds(new Set());
+      setBulkMessage(`تم تطبيق العملية على ${result.updated ?? pickedRows.length} طلباً.`);
+      void queryClient.invalidateQueries({ queryKey: adminQueryKeys.overview() });
+      invalidateSubmissionsListQueries(queryClient);
+    }
+    setBulkBusy(false);
+  };
+
+  const handleBulkAssign = () =>
+    void runBulkAction(async () => {
+      const result = await bulkAssignRequests(pickedRows, bulkReviewerId, displayName);
+      return result.ok ? { ok: true, updated: result.updated } : { ok: false, message: result.message };
+    });
+
+  const handleBulkStatus = () => {
+    if (bulkStatus === "rejected") {
+      setBulkRejectOpen(true);
+      return;
+    }
+    void runBulkAction(async () => {
+      const result = await bulkUpdateRequestStatus(pickedRows, bulkStatus, displayName);
+      return result.ok ? { ok: true, updated: result.updated } : { ok: false, message: result.message };
+    });
+  };
+
+  const handleBulkReject = async (reason: string) => {
+    setBulkRejectOpen(false);
+    await runBulkAction(async () => {
+      const result = await bulkUpdateRequestStatus(pickedRows, "rejected", displayName, reason);
+      return result.ok ? { ok: true, updated: result.updated } : { ok: false, message: result.message };
+    });
+  };
+
+  const handleBulkTag = () => {
+    const tag = allTags.find((t) => t.id === bulkTagId);
+    if (!tag) return;
+    void runBulkAction(async () => {
+      const result = await bulkAddTagToRequests(pickedRows, bulkTagId, tag.name_ar, displayName);
+      return result.ok ? { ok: true, updated: result.updated } : { ok: false, message: result.message };
+    });
+  };
+
+  const handleBulkExportSelected = () => {
+    if (!canExport(roles) || pickedRows.length === 0) return;
+    setBulkBusy(true);
+    setBulkMessage(null);
+    void exportSelectedSubmissions({
+      rows: pickedRows,
+      columns: exportColumns,
+      actorName: displayName,
+    })
+      .then(() => {
+        setBulkMessage(`تم تصدير ${pickedRows.length} طلباً.`);
+        clearSelection();
+      })
+      .catch(() => setBulkMessage("تعذّر تصدير الطلبات المحدّدة."))
+      .finally(() => setBulkBusy(false));
+  };
 
   const setSort = (field: SortField) => {
     const direction =
@@ -408,6 +528,24 @@ function RequestsList() {
             إعادة تعيين
           </button>
         </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {quickFilterPresets(user?.id).map((preset) => (
+            <button
+              key={preset.id}
+              type="button"
+              disabled={preset.id === "my_review" && !user?.id}
+              onClick={() => applyQuickFilter(preset.id)}
+              className={[
+                "rounded-full border px-3 py-1 text-xs transition",
+                activeQuickFilter === preset.id
+                  ? "border-clay bg-clay/10 text-clay"
+                  : "border-border hover:border-clay/60",
+              ].join(" ")}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
         <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
           <label className="space-y-1 text-xs">
             <span className="text-muted-foreground">المحافظة / القضاء</span>
@@ -461,12 +599,32 @@ function RequestsList() {
           </label>
           <label className="space-y-1 text-xs">
             <span className="text-muted-foreground">من تاريخ</span>
-            <input
-              type="date"
-              value={createdFrom}
-              onChange={(e) => setCreatedFrom(e.target.value)}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-            />
+            <div className="flex gap-1">
+              <input
+                type="date"
+                value={createdFrom}
+                onChange={(e) => setCreatedFrom(e.target.value)}
+                className="min-w-0 flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm"
+              />
+              <button
+                type="button"
+                title="اليوم"
+                onClick={() => {
+                  const today = new Date().toISOString().slice(0, 10);
+                  setCreatedFrom(today);
+                  setCreatedTo(today);
+                  if (pageSize < 50) handlePageSizeChange(50);
+                }}
+                className={[
+                  "rounded-md border px-2 py-1 text-xs whitespace-nowrap",
+                  createdFrom === new Date().toISOString().slice(0, 10) && createdTo === new Date().toISOString().slice(0, 10)
+                    ? "border-clay bg-clay/10 text-clay"
+                    : "border-border hover:border-clay",
+                ].join(" ")}
+              >
+                اليوم
+              </button>
+            </div>
           </label>
           <label className="space-y-1 text-xs">
             <span className="text-muted-foreground">إلى تاريخ</span>
@@ -614,6 +772,115 @@ function RequestsList() {
         )}
       </div>
 
+      {selectedCount > 0 && (
+        <div className="sticky top-2 z-20 rounded-xl border border-clay/40 bg-card p-4 shadow-md">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="text-sm font-medium">
+              {selectedCount.toLocaleString("ar-EG")} طلب محدّد
+              <span className="mr-2 text-xs font-normal text-muted-foreground">(الصفحة الحالية)</span>
+            </span>
+            <button
+              type="button"
+              disabled={bulkBusy}
+              onClick={clearSelection}
+              className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+            >
+              إلغاء التحديد
+            </button>
+          </div>
+          <div className="mt-3 flex flex-wrap items-end gap-2">
+            <label className="space-y-1 text-xs">
+              <span className="text-muted-foreground">تعيين مراجع</span>
+              <select
+                value={bulkReviewerId}
+                onChange={(e) => setBulkReviewerId(e.target.value)}
+                disabled={bulkBusy}
+                className="block min-w-[10rem] rounded-md border border-border bg-background px-3 py-2 text-sm"
+              >
+                <option value="">اختر مراجعاً...</option>
+                {staff.map((m) => (
+                  <option key={m.user_id} value={m.user_id}>
+                    {m.display_name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              disabled={bulkBusy || !bulkReviewerId}
+              onClick={handleBulkAssign}
+              className="rounded-md border border-border px-3 py-2 text-xs hover:border-clay disabled:opacity-50"
+            >
+              تعيين
+            </button>
+            <label className="space-y-1 text-xs">
+              <span className="text-muted-foreground">تغيير الحالة</span>
+              <select
+                value={bulkStatus}
+                onChange={(e) => setBulkStatus(e.target.value as DbStatus)}
+                disabled={bulkBusy}
+                className="block min-w-[10rem] rounded-md border border-border bg-background px-3 py-2 text-sm"
+              >
+                {BULK_STATUS_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              disabled={bulkBusy}
+              onClick={handleBulkStatus}
+              className={[
+                "rounded-md border px-3 py-2 text-xs disabled:opacity-50",
+                bulkStatus === "rejected"
+                  ? "border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/20"
+                  : "border-border hover:border-clay",
+              ].join(" ")}
+            >
+              تطبيق الحالة
+            </button>
+            <label className="space-y-1 text-xs">
+              <span className="text-muted-foreground">إضافة وسم</span>
+              <select
+                value={bulkTagId}
+                onChange={(e) => setBulkTagId(e.target.value)}
+                disabled={bulkBusy}
+                className="block min-w-[10rem] rounded-md border border-border bg-background px-3 py-2 text-sm"
+              >
+                <option value="">اختر وسم...</option>
+                {allTags.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name_ar}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              disabled={bulkBusy || !bulkTagId}
+              onClick={handleBulkTag}
+              className="rounded-md border border-border px-3 py-2 text-xs hover:border-clay disabled:opacity-50"
+            >
+              إضافة وسم
+            </button>
+            {canExport(roles) && (
+              <button
+                type="button"
+                disabled={bulkBusy}
+                onClick={handleBulkExportSelected}
+                className="rounded-md border border-border px-3 py-2 text-xs hover:border-clay disabled:opacity-50"
+              >
+                تصدير المحدّد
+              </button>
+            )}
+            {bulkBusy && <Loader2 className="h-4 w-4 animate-spin text-clay" />}
+          </div>
+          {bulkMessage && <p className="mt-2 text-xs text-clay">{bulkMessage}</p>}
+        </div>
+      )}
+
       <div className="table-scroll overflow-x-auto rounded-xl border border-border bg-card">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3 text-xs text-muted-foreground sm:px-5">
           <div>{loading ? "جارٍ التحميل..." : `${totalCount.toLocaleString("ar-EG")} نتيجة`}</div>
@@ -640,6 +907,15 @@ function RequestsList() {
           <table className="w-full min-w-[720px] text-right text-sm">
             <thead>
               <tr className="border-b border-border bg-surface text-[11px] uppercase text-muted-foreground">
+                <th className="w-10 px-3 py-3">
+                  <input
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={toggleAllVisible}
+                    aria-label="تحديد كل الصفوف في الصفحة"
+                    className="h-4 w-4"
+                  />
+                </th>
                 <th className="px-4 py-3 font-medium">الدور</th>
                 <th className="px-4 py-3 font-medium">الاسم / الرمز</th>
                 <th className="px-4 py-3 font-medium">المنطقة</th>
@@ -664,8 +940,18 @@ function RequestsList() {
                     className={[
                       "border-b border-border/60 transition hover:bg-surface",
                       s.flags.length ? "border-r-2 border-r-destructive" : "",
+                      selectedIds.has(s.id) ? "bg-clay/5" : "",
                     ].join(" ")}
                   >
+                    <td className="px-3 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(s.id)}
+                        onChange={() => toggleOne(s.id)}
+                        aria-label={`تحديد ${s.reference_code}`}
+                        className="h-4 w-4"
+                      />
+                    </td>
                     <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                       {formatQueueNumber(s.queue_number ?? null)}
                     </td>
@@ -770,7 +1056,7 @@ function RequestsList() {
               })}
               {!loading && rows.length === 0 && (
                 <tr>
-                  <td colSpan={12} className="px-4 py-10 text-center text-muted-foreground">
+                  <td colSpan={13} className="px-4 py-10 text-center text-muted-foreground">
                     لا توجد طلبات.
                   </td>
                 </tr>
@@ -784,7 +1070,23 @@ function RequestsList() {
             const urg = displayUrgency(s);
             const tierKey = (s.urgency_tier ?? "medium") as UrgencyTier;
             return (
-              <AdminMobileCard key={s.id} className={s.flags.length ? "border-r-2 border-r-destructive" : ""}>
+              <AdminMobileCard
+                key={s.id}
+                className={[
+                  s.flags.length ? "border-r-2 border-r-destructive" : "",
+                  selectedIds.has(s.id) ? "ring-1 ring-clay/40" : "",
+                ].join(" ")}
+              >
+                <div className="mb-2 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(s.id)}
+                    onChange={() => toggleOne(s.id)}
+                    aria-label={`تحديد ${s.reference_code}`}
+                    className="h-4 w-4"
+                  />
+                  <span className="text-[10px] text-muted-foreground">تحديد للعمليات الجماعية</span>
+                </div>
                 <AdminMobileCardHeader
                   title={s.full_name}
                   mono={`${s.reference_code} · ${s.phone}`}
@@ -828,15 +1130,12 @@ function RequestsList() {
             );
           })}
         </AdminMobileList>
-        {nextCursor && (
+        {hasNextPage && (
           <div className="border-t border-border p-4 text-center">
             <button
               type="button"
               disabled={loadingMore}
-              onClick={() => {
-                setLoadingMore(true);
-                void loadPage(true, nextCursor).finally(() => setLoadingMore(false));
-              }}
+              onClick={() => void listQuery.fetchNextPage()}
               className="rounded-md border border-border px-4 py-2 text-sm hover:border-clay disabled:opacity-50"
             >
               {loadingMore ? "جارٍ التحميل..." : "تحميل المزيد"}
@@ -853,6 +1152,60 @@ function RequestsList() {
           onClose={() => setShowExport(false)}
         />
       )}
+
+      <AdminActionModal
+        open={bulkRejectOpen}
+        title="رفض الطلبات المحدّدة"
+        description={`سيتم رفض ${selectedCount.toLocaleString("ar-EG")} طلباً مع تسجيل السبب في سجل كل طلب.`}
+        preview={[
+          {
+            label: "عدد الطلبات",
+            value: selectedCount.toLocaleString("ar-EG"),
+          },
+          ...(pickedRows.length <= 5
+            ? [
+                {
+                  label: "الرموز",
+                  value: (
+                    <span dir="ltr" className="font-mono text-xs">
+                      {pickedRows.map((r) => r.reference_code).join(" · ")}
+                    </span>
+                  ),
+                },
+              ]
+            : [
+                {
+                  label: "أمثلة",
+                  value: (
+                    <span dir="ltr" className="font-mono text-xs">
+                      {pickedRows
+                        .slice(0, 3)
+                        .map((r) => r.reference_code)
+                        .join(" · ")}{" "}
+                      …
+                    </span>
+                  ),
+                },
+              ]),
+        ]}
+        cannedReasons={[
+          "معلومات غير مكتملة",
+          "وثيقة غير صالحة أو غير واضحة",
+          "تكرار طلب",
+          "المرجع رفض التأكيد",
+          "لا يستوفي شروط المساعدة",
+        ]}
+        reasonLabel="سبب الرفض"
+        reasonPlaceholder="اشرح سبب الرفض للفريق..."
+        requireReason
+        confirmLabel="رفض المحدّد"
+        variant="destructive"
+        busy={bulkBusy}
+        onClose={() => setBulkRejectOpen(false)}
+        onConfirm={async ({ reason }) => {
+          await handleBulkReject(reason);
+        }}
+      />
     </div>
   );
 }

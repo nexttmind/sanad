@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   activateAdminUser,
@@ -13,7 +13,7 @@ import {
   type AdminUserRow,
 } from "@/lib/admin-users";
 import type { AppRole } from "@/lib/auth";
-import { supabase } from "@/integrations/supabase/client";
+import { useAdminTableRealtime } from "@/lib/use-admin-realtime";
 import {
   AdminDesktopTable,
   AdminMobileCard,
@@ -22,6 +22,7 @@ import {
   AdminMobileCardHeader,
   AdminMobileList,
 } from "@/components/admin/AdminMobileCard";
+import { AdminActionModal } from "@/components/admin/AdminActionModal";
 
 export const Route = createFileRoute("/admin/users")({
   component: Users,
@@ -41,8 +42,9 @@ function Users() {
     password: "",
     role: "reviewer" as AppRole,
   });
+  const [roleTarget, setRoleTarget] = useState<AdminUserRow | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       setError(null);
       const data = await fetchAdminUsers();
@@ -51,7 +53,7 @@ function Users() {
       if (import.meta.env.DEV) console.error("[Users]", err);
       setError("تعذّر تحميل المستخدمين. تأكد من تطبيق migration 20260605200000.");
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (!isAdmin) {
@@ -64,15 +66,14 @@ function Users() {
       await load();
       if (alive) setLoading(false);
     })();
-    const ch = supabase
-      .channel("admin-users")
-      .on("postgres_changes", { event: "*", schema: "public", table: "user_roles" }, () => void load())
-      .subscribe();
     return () => {
       alive = false;
-      supabase.removeChannel(ch);
     };
-  }, [isAdmin]);
+  }, [isAdmin, load]);
+
+  useAdminTableRealtime("admin-users", "user_roles", () => {
+    if (isAdmin) void load();
+  });
 
   const submitCreate = async () => {
     if (!form.full_name.trim() || !form.email.trim() || form.password.length < 8) {
@@ -106,12 +107,8 @@ function Users() {
     await load();
   };
 
-  const changeRole = async (row: AdminUserRow) => {
-    const next = window.prompt(
-      `الدور الجديد لـ ${row.display_name}:\n(admin / reviewer / distributor / viewer)`,
-      row.role,
-    )?.trim() as AppRole | undefined;
-    if (!next || !ASSIGNABLE_ROLES.includes(next)) return;
+  const changeRole = async (row: AdminUserRow, next: AppRole) => {
+    if (!ASSIGNABLE_ROLES.includes(next)) return;
     setBusy(true);
     setError(null);
     const result = await updateAdminUserRole(row.user_id, next);
@@ -250,7 +247,7 @@ function Users() {
                     <button
                       type="button"
                       disabled={busy || u.user_id === user?.id}
-                      onClick={() => void changeRole(u)}
+                      onClick={() => setRoleTarget(u)}
                       className="text-xs text-clay hover:underline disabled:opacity-50"
                     >
                       تعديل
@@ -305,7 +302,7 @@ function Users() {
                 <button
                   type="button"
                   disabled={busy || u.user_id === user?.id}
-                  onClick={() => void changeRole(u)}
+                  onClick={() => setRoleTarget(u)}
                   className="text-xs text-clay hover:underline disabled:opacity-50"
                 >
                   تعديل الدور
@@ -328,6 +325,30 @@ function Users() {
           ))}
         </AdminMobileList>
       </div>
+      <AdminActionModal
+        open={roleTarget != null}
+        title="تعديل دور المستخدم"
+        preview={
+          roleTarget
+            ? [
+                { label: "الاسم", value: roleTarget.display_name },
+                { label: "البريد", value: <span dir="ltr">{roleTarget.email}</span> },
+                { label: "الدور الحالي", value: roleLabel(roleTarget.role) },
+              ]
+            : undefined
+        }
+        selectLabel="الدور الجديد"
+        selectOptions={ASSIGNABLE_ROLES.map((r) => ({ value: r, label: roleLabel(r) }))}
+        selectValue={roleTarget?.role}
+        confirmLabel="حفظ الدور"
+        busy={busy}
+        onClose={() => setRoleTarget(null)}
+        onConfirm={async ({ selected }) => {
+          if (!roleTarget || !selected) return;
+          await changeRole(roleTarget, selected as AppRole);
+          setRoleTarget(null);
+        }}
+      />
     </div>
   );
 }

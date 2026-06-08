@@ -4,7 +4,16 @@ import { createThrottledCallback, shouldRefetchWhileVisible } from "@/lib/thrott
 
 const DEFAULT_THROTTLE_MS = 5_000;
 
-type RealtimeTable = "aid_requests" | "aid_request_notes" | "aid_request_history" | "aid_request_files";
+export type RealtimeTable =
+  | "aid_requests"
+  | "aid_request_notes"
+  | "aid_request_history"
+  | "aid_request_files"
+  | "donations"
+  | "user_roles"
+  | "mukhtar_whitelist"
+  | "distribution_events"
+  | "qr_completions";
 
 /**
  * Subscribe to postgres_changes with throttled refetch (avoids refetch storms during submit spikes).
@@ -47,11 +56,11 @@ export function useAdminTableRealtime(
  */
 export function useAdminMultiRealtime(
   channelId: string,
-  specs: { table: RealtimeTable; filter: string }[],
+  specs: { table: RealtimeTable; filter?: string }[],
   refetch: () => void,
   waitMs = DEFAULT_THROTTLE_MS,
 ): void {
-  const specKey = specs.map((s) => `${s.table}:${s.filter}`).join("|");
+  const specKey = specs.map((s) => `${s.table}:${s.filter ?? ""}`).join("|");
 
   useEffect(() => {
     const throttled = createThrottledCallback(() => {
@@ -63,7 +72,12 @@ export function useAdminMultiRealtime(
     for (const spec of specs) {
       channel = channel.on(
         "postgres_changes",
-        { event: "*", schema: "public", table: spec.table, filter: spec.filter },
+        {
+          event: "*",
+          schema: "public",
+          table: spec.table,
+          ...(spec.filter ? { filter: spec.filter } : {}),
+        },
         throttled,
       );
     }

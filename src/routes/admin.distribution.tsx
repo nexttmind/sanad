@@ -16,7 +16,7 @@ import {
   type DistributionRequestRow,
   type EventWithStats,
 } from "@/lib/distribution";
-import { supabase } from "@/integrations/supabase/client";
+import { useAdminMultiRealtime } from "@/lib/use-admin-realtime";
 
 export const Route = createFileRoute("/admin/distribution")({
   component: Distribution,
@@ -54,21 +54,23 @@ function Distribution() {
     capacity: "",
   });
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       setError(null);
       const [ev, ap] = await Promise.all([fetchDistributionEvents(), fetchApprovedRequests()]);
       setEvents(ev);
       setApproved(ap);
-      if (!scanEventId && ev.length > 0) {
+      setScanEventId((current) => {
+        if (current) return current;
+        if (ev.length === 0) return current;
         const active = ev.find((e) => e.status === "in_progress") ?? ev[0];
-        setScanEventId(active.id);
-      }
+        return active.id;
+      });
     } catch (err) {
       if (import.meta.env.DEV) console.error("[Distribution]", err);
       setError("تعذّر تحميل بيانات التوزيع.");
     }
-  };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -77,18 +79,22 @@ function Distribution() {
       await load();
       if (alive) setLoading(false);
     })();
-    const ch = supabase
-      .channel("admin-distribution")
-      .on("postgres_changes", { event: "*", schema: "public", table: "distribution_events" }, () => void load())
-      .on("postgres_changes", { event: "*", schema: "public", table: "qr_completions" }, () => void load())
-      .on("postgres_changes", { event: "*", schema: "public", table: "aid_requests" }, () => void load())
-      .subscribe();
     return () => {
       alive = false;
-      supabase.removeChannel(ch);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [load]);
+
+  useAdminMultiRealtime(
+    "admin-distribution",
+    [
+      { table: "distribution_events" },
+      { table: "qr_completions" },
+      { table: "aid_requests" },
+    ],
+    () => {
+      void load();
+    },
+  );
 
   const submitCreate = async () => {
     if (!createForm.name.trim() || !createForm.location.trim() || !createForm.scheduled_at) {
@@ -159,8 +165,8 @@ function Distribution() {
       setBusy(false);
       return;
     }
-    if (!pinInput.trim()) {
-      setError("يرجى إدخال رمز PIN.");
+    if (!/^\d{6}$/.test(pinInput.trim())) {
+      setError("رمز PIN يجب أن يكون 6 أرقام.");
       setBusy(false);
       return;
     }
@@ -413,9 +419,14 @@ function Distribution() {
             <input
               dir="ltr"
               value={pinInput}
-              onChange={(e) => setPinInput(e.target.value)}
-              placeholder="PIN"
-              className="mt-3 w-full rounded-md border border-border bg-background px-3 py-2 font-mono text-sm"
+              onChange={(e) => setPinInput(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              placeholder="PIN (6 أرقام)"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              minLength={6}
+              pattern="\d{6}"
+              className="mt-3 w-full rounded-md border border-border bg-background px-3 py-2 font-mono text-sm tracking-widest"
             />
 
             {preview && (

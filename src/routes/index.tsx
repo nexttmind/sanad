@@ -314,7 +314,6 @@ function RequestHome() {
             setPrecheckBlocked({
               reason: result.reason,
               message: result.message,
-              reference_code: result.reference_code,
             });
             setSubmitBlocked(true);
           } else {
@@ -904,8 +903,32 @@ function RequestHome() {
               </Field>
             </div>
             <div data-err="docNumber">
-              <Field label="رقم الوثيقة" required error={show("docNumber") ? errors.docNumber : null}>
-                <input placeholder="مثال: 12345678" className={cls(!!(show("docNumber") && errors.docNumber))} value={docNumber} onChange={(e) => setDocNumber(e.target.value)} onBlur={touch("docNumber")} />
+              <Field
+                label="رقم الوثيقة"
+                required
+                hint={
+                  documentType === "lebanese_id"
+                    ? "7–8 أرقام"
+                    : documentType === "passport"
+                      ? "حرفان + 7 أرقام، مثال: RL1234567"
+                      : undefined
+                }
+                error={show("docNumber") ? errors.docNumber : null}
+              >
+                <input
+                  dir="ltr"
+                  placeholder={
+                    documentType === "passport"
+                      ? "RL1234567"
+                      : documentType === "lebanese_id"
+                        ? "12345678"
+                        : "مثال: 12345678"
+                  }
+                  className={cls(!!(show("docNumber") && errors.docNumber))}
+                  value={docNumber}
+                  onChange={(e) => setDocNumber(e.target.value.toUpperCase())}
+                  onBlur={touch("docNumber")}
+                />
               </Field>
             </div>
             <Field label="تاريخ انتهاء الوثيقة" hint="اختياري">

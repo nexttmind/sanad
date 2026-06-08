@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   DONATION_STATUS_AR,
@@ -13,7 +13,7 @@ import {
   type AdminDonationRow,
   type DonationStatus,
 } from "@/lib/admin-donations";
-import { supabase } from "@/integrations/supabase/client";
+import { useAdminTableRealtime } from "@/lib/use-admin-realtime";
 import {
   AdminDesktopTable,
   AdminMobileCard,
@@ -22,6 +22,7 @@ import {
   AdminMobileCardHeader,
   AdminMobileList,
 } from "@/components/admin/AdminMobileCard";
+import { AdminActionModal } from "@/components/admin/AdminActionModal";
 
 export const Route = createFileRoute("/admin/donations")({
   component: DonationsAdmin,
@@ -43,9 +44,11 @@ function DonationsAdmin() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
+  const [verifyTarget, setVerifyTarget] = useState<AdminDonationRow | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<AdminDonationRow | null>(null);
   const [status, setStatus] = useState<DonationStatus | "all">("pending");
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       setError(null);
       const data = await fetchAdminDonations();
@@ -54,7 +57,7 @@ function DonationsAdmin() {
       if (import.meta.env.DEV) console.error("[DonationsAdmin]", err);
       setError("تعذّر تحميل التبرّعات.");
     }
-  };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -63,17 +66,14 @@ function DonationsAdmin() {
       await load();
       if (alive) setLoading(false);
     })();
-    const ch = supabase
-      .channel("admin-donations")
-      .on("postgres_changes", { event: "*", schema: "public", table: "donations" }, () => {
-        void load();
-      })
-      .subscribe();
     return () => {
       alive = false;
-      supabase.removeChannel(ch);
     };
-  }, []);
+  }, [load]);
+
+  useAdminTableRealtime("admin-donations", "donations", () => {
+    void load();
+  });
 
   const filtered = useMemo(
     () =>
@@ -97,7 +97,6 @@ function DonationsAdmin() {
   }, [rows]);
 
   const handleVerify = async (row: AdminDonationRow) => {
-    if (!window.confirm(`تأكيد التبرّع ${row.reference_code} بمبلغ $${row.amount}؟`)) return;
     setBusyId(row.id);
     setError(null);
     try {
@@ -110,9 +109,7 @@ function DonationsAdmin() {
     setBusyId(null);
   };
 
-  const handleReject = async (row: AdminDonationRow) => {
-    const reason = window.prompt("سبب الرفض (اختياري):");
-    if (reason === null) return;
+  const handleReject = async (row: AdminDonationRow, reason: string) => {
     setBusyId(row.id);
     setError(null);
     try {
@@ -259,7 +256,7 @@ function DonationsAdmin() {
                         <button
                           type="button"
                           disabled={busyId === r.id}
-                          onClick={() => void handleVerify(r)}
+                          onClick={() => setVerifyTarget(r)}
                           className="rounded-md bg-success px-2.5 py-1 text-[12px] text-white hover:bg-success/90 disabled:opacity-50"
                         >
                           توثيق
@@ -267,7 +264,7 @@ function DonationsAdmin() {
                         <button
                           type="button"
                           disabled={busyId === r.id}
-                          onClick={() => void handleReject(r)}
+                          onClick={() => setRejectTarget(r)}
                           className="rounded-md border border-destructive/40 px-2.5 py-1 text-[12px] text-destructive hover:bg-destructive/10 disabled:opacity-50"
                         >
                           رفض
@@ -329,7 +326,7 @@ function DonationsAdmin() {
                     <button
                       type="button"
                       disabled={busyId === r.id}
-                      onClick={() => void handleVerify(r)}
+                      onClick={() => setVerifyTarget(r)}
                       className="rounded-md bg-success px-2.5 py-1 text-xs text-white hover:bg-success/90 disabled:opacity-50"
                     >
                       توثيق
@@ -337,7 +334,7 @@ function DonationsAdmin() {
                     <button
                       type="button"
                       disabled={busyId === r.id}
-                      onClick={() => void handleReject(r)}
+                      onClick={() => setRejectTarget(r)}
                       className="rounded-md border border-destructive/40 px-2.5 py-1 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-50"
                     >
                       رفض
@@ -369,6 +366,53 @@ function DonationsAdmin() {
             ))}
         </div>
       )}
+      <AdminActionModal
+        open={verifyTarget != null}
+        title="توثيق التبرّع"
+        description="سيظهر هذا التبرّع في السجل العام بعد التوثيق."
+        preview={
+          verifyTarget
+            ? [
+                { label: "الرمز", value: <span dir="ltr" className="font-mono">{verifyTarget.reference_code}</span> },
+                { label: "المتبرّع", value: donorDisplay(verifyTarget) },
+                { label: "المبلغ", value: `$${verifyTarget.amount}` },
+                { label: "الطريقة", value: methodLabel(verifyTarget.method) },
+              ]
+            : undefined
+        }
+        confirmLabel="توثيق"
+        variant="success"
+        busy={busyId === verifyTarget?.id}
+        onClose={() => setVerifyTarget(null)}
+        onConfirm={async () => {
+          if (!verifyTarget) return;
+          await handleVerify(verifyTarget);
+          setVerifyTarget(null);
+        }}
+      />
+      <AdminActionModal
+        open={rejectTarget != null}
+        title="رفض التبرّع"
+        preview={
+          rejectTarget
+            ? [
+                { label: "الرمز", value: <span dir="ltr" className="font-mono">{rejectTarget.reference_code}</span> },
+                { label: "المبلغ", value: `$${rejectTarget.amount}` },
+              ]
+            : undefined
+        }
+        cannedReasons={["إثبات غير واضح", "مبلغ غير مطابق", "بيانات ناقصة"]}
+        reasonLabel="سبب الرفض (اختياري)"
+        confirmLabel="رفض"
+        variant="destructive"
+        busy={busyId === rejectTarget?.id}
+        onClose={() => setRejectTarget(null)}
+        onConfirm={async ({ reason }) => {
+          if (!rejectTarget) return;
+          await handleReject(rejectTarget, reason);
+          setRejectTarget(null);
+        }}
+      />
     </div>
   );
 }

@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/integrations/supabase/client");
 
-import { checkRateLimit, parseRateLimitResult } from "@/lib/rate-limit";
+import { parseRateLimitResult } from "@/lib/rate-limit";
+import { checkRateLimit } from "@/lib/rate-limit.server";
 
 describe("rate-limit supabase flows", () => {
   beforeEach(() => {

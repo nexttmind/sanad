@@ -21,7 +21,7 @@ export function ScoringPreviewPanel() {
   const reload = async () => {
     setLoading(true);
     try {
-      setSamples(await fetchScoringPreviewSamples(3));
+      setSamples(await fetchScoringPreviewSamples(20));
     } catch {
       setSamples([]);
     } finally {
@@ -37,7 +37,7 @@ export function ScoringPreviewPanel() {
     <div className="rounded-xl border border-border bg-card p-5 space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <div className="text-sm font-medium">معاينة — آخر 3 طلبات</div>
+          <div className="text-sm font-medium">معاينة — آخر 20 طلباً</div>
           <p className="mt-1 text-[11px] text-muted-foreground">
             العجلة الحالية قبل/بعد الحفظ — أعد الاحتساب الجماعي لتطبيق الإعدادات الجديدة.
           </p>

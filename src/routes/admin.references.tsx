@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   deactivateMukhtarWhitelist,
@@ -10,7 +10,7 @@ import {
   verifyMukhtarWhitelist,
   type MukhtarWhitelistRow,
 } from "@/lib/mukhtar-whitelist";
-import { supabase } from "@/integrations/supabase/client";
+import { useAdminTableRealtime } from "@/lib/use-admin-realtime";
 import {
   AdminDesktopTable,
   AdminMobileCard,
@@ -19,6 +19,7 @@ import {
   AdminMobileCardHeader,
   AdminMobileList,
 } from "@/components/admin/AdminMobileCard";
+import { AdminActionModal } from "@/components/admin/AdminActionModal";
 
 export const Route = createFileRoute("/admin/references")({
   component: References,
@@ -41,8 +42,10 @@ function References() {
     region: "",
     village: "",
   });
+  const [verifyTarget, setVerifyTarget] = useState<MukhtarWhitelistRow | null>(null);
+  const [deactivateTarget, setDeactivateTarget] = useState<MukhtarWhitelistRow | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       setError(null);
       const data = await fetchMukhtarWhitelist();
@@ -51,7 +54,7 @@ function References() {
       if (import.meta.env.DEV) console.error("[References]", err);
       setError("تعذّر تحميل قائمة المختارين. تأكد من تطبيق migration 20260605170000.");
     }
-  };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -60,21 +63,14 @@ function References() {
       await load();
       if (alive) setLoading(false);
     })();
-    const ch = supabase
-      .channel("admin-references")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "mukhtar_whitelist" },
-        () => {
-          void load();
-        },
-      )
-      .subscribe();
     return () => {
       alive = false;
-      supabase.removeChannel(ch);
     };
-  }, []);
+  }, [load]);
+
+  useAdminTableRealtime("admin-references", "mukhtar_whitelist", () => {
+    void load();
+  });
 
   const regions = useMemo(() => {
     const set = new Set<string>();
@@ -131,9 +127,8 @@ function References() {
     setBusy(false);
   };
 
-  const verify = async (row: MukhtarWhitelistRow) => {
+  const verify = async (row: MukhtarWhitelistRow, notes: string) => {
     if (!user) return;
-    const notes = window.prompt("ملاحظات التحقق (اختياري)") ?? "";
     setBusy(true);
     setError(null);
     try {
@@ -146,9 +141,7 @@ function References() {
     setBusy(false);
   };
 
-  const deactivate = async (row: MukhtarWhitelistRow) => {
-    const reason = window.prompt("سبب التعطيل؟")?.trim();
-    if (!reason) return;
+  const deactivate = async (row: MukhtarWhitelistRow, reason: string) => {
     setBusy(true);
     setError(null);
     try {
@@ -324,7 +317,7 @@ function References() {
                         <button
                           type="button"
                           disabled={busy}
-                          onClick={() => void verify(r)}
+                          onClick={() => setVerifyTarget(r)}
                           className="text-xs text-success hover:underline disabled:opacity-50"
                         >
                           توثيق
@@ -334,7 +327,7 @@ function References() {
                         <button
                           type="button"
                           disabled={busy}
-                          onClick={() => void deactivate(r)}
+                          onClick={() => setDeactivateTarget(r)}
                           className="text-xs text-destructive hover:underline disabled:opacity-50"
                         >
                           تعطيل
@@ -394,7 +387,7 @@ function References() {
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => void verify(r)}
+                      onClick={() => setVerifyTarget(r)}
                       className="text-xs text-success hover:underline disabled:opacity-50"
                     >
                       توثيق
@@ -404,7 +397,7 @@ function References() {
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => void deactivate(r)}
+                      onClick={() => setDeactivateTarget(r)}
                       className="text-xs text-destructive hover:underline disabled:opacity-50"
                     >
                       تعطيل
@@ -416,6 +409,53 @@ function References() {
           })}
         </AdminMobileList>
       </div>
+      <AdminActionModal
+        open={verifyTarget != null}
+        title="توثيق المرجع"
+        preview={
+          verifyTarget
+            ? [
+                { label: "الاسم", value: verifyTarget.full_name },
+                { label: "الهاتف", value: <span dir="ltr" className="font-mono">{verifyTarget.phone}</span> },
+                { label: "المنطقة", value: verifyTarget.region ?? "—" },
+              ]
+            : undefined
+        }
+        reasonLabel="ملاحظات التحقق (اختياري)"
+        confirmLabel="توثيق"
+        variant="success"
+        busy={busy}
+        onClose={() => setVerifyTarget(null)}
+        onConfirm={async ({ reason }) => {
+          if (!verifyTarget) return;
+          await verify(verifyTarget, reason);
+          setVerifyTarget(null);
+        }}
+      />
+      <AdminActionModal
+        open={deactivateTarget != null}
+        title="تعطيل المرجع"
+        preview={
+          deactivateTarget
+            ? [
+                { label: "الاسم", value: deactivateTarget.full_name },
+                { label: "الهاتف", value: <span dir="ltr" className="font-mono">{deactivateTarget.phone}</span> },
+              ]
+            : undefined
+        }
+        cannedReasons={["رقم خاطئ", "غير معروف في المنطقة", "طلب المرجع نفسه"]}
+        reasonLabel="سبب التعطيل"
+        requireReason
+        confirmLabel="تعطيل"
+        variant="destructive"
+        busy={busy}
+        onClose={() => setDeactivateTarget(null)}
+        onConfirm={async ({ reason }) => {
+          if (!deactivateTarget) return;
+          await deactivate(deactivateTarget, reason);
+          setDeactivateTarget(null);
+        }}
+      />
     </div>
   );
 }

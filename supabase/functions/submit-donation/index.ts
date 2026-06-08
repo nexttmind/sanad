@@ -1,17 +1,37 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-const DEFAULT_ALLOWED = ["http://localhost:5173", "http://localhost:3000"];
+const DEFAULT_ALLOWED = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "http://localhost:8080",
+  "https://sanaddd.netlify.app",
+];
 const BASE_ALLOW_HEADERS = "authorization, x-client-info, apikey, content-type";
 
 function getAllowedOrigins(): string[] {
   const raw = Deno.env.get("ALLOWED_ORIGINS");
-  if (!raw?.trim()) return DEFAULT_ALLOWED;
-  return raw.split(",").map((origin) => origin.trim()).filter(Boolean);
+  const fromEnv = raw?.trim()
+    ? raw.split(",").map((origin) => origin.trim()).filter(Boolean)
+    : [];
+  return [...new Set([...DEFAULT_ALLOWED, ...fromEnv])];
+}
+
+function isNetlifySanadOrigin(origin: string): boolean {
+  try {
+    const { protocol, hostname } = new URL(origin);
+    if (protocol !== "https:") return false;
+    const host = hostname.toLowerCase();
+    if (host === "sanaddd.netlify.app") return true;
+    return /^[\w-]+--sanaddd\.netlify\.app$/.test(host);
+  } catch {
+    return false;
+  }
 }
 
 function resolveAllowedOrigin(req: Request): string | null {
   const origin = req.headers.get("Origin");
   if (!origin) return null;
-  return getAllowedOrigins().includes(origin) ? origin : null;
+  if (getAllowedOrigins().includes(origin) || isNetlifySanadOrigin(origin)) return origin;
+  return null;
 }
 
 function corsHeadersForRequest(

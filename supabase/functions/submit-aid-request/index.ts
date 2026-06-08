@@ -234,7 +234,7 @@ async function assertSubmitRateLimits(
     });
     if (error) {
       console.error("[submit-aid-request] check_rate_limit:", error);
-      return null;
+      throw error;
     }
     const row = (data ?? {}) as RateLimitRow;
     if (row.allowed === false) {

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { AdminActionModal } from "@/components/admin/AdminActionModal";
 import { logAdminAction } from "@/lib/audit-log";
 import { fetchStaffMembers, type StaffMember } from "@/lib/admin-staff";
 import {
@@ -243,7 +244,6 @@ export function ReferenceContactSection({
     setBusy(true);
     try {
       await updateReferenceContact(requestId, result, notes.trim() || null, userId);
-      await supabase.rpc("calculate_scores", { _request_id: requestId });
       await logAdminAction({
         action: "reference_contacted",
         entityId: requestId,
@@ -307,6 +307,17 @@ export function ReferenceContactSection({
 }
 
 /* ---------- Documents ---------- */
+function isImageMime(mime: string | null, path: string): boolean {
+  if (mime) return mime.startsWith("image/");
+  const ext = path.split(".").pop()?.toLowerCase() ?? "";
+  return ["jpg", "jpeg", "png", "webp", "gif"].includes(ext);
+}
+
+function isPdfMime(mime: string | null, path: string): boolean {
+  if (mime) return mime === "application/pdf";
+  return path.split(".").pop()?.toLowerCase() === "pdf";
+}
+
 export function DocumentsSection({
   requestId,
   referenceCode,
@@ -322,9 +333,29 @@ export function DocumentsSection({
   actorName: string;
   userId: string;
   onChanged: () => void;
-  onOpen: (file: FileRowExtended) => void;
+  onOpen?: (file: FileRowExtended) => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [rejectTarget, setRejectTarget] = useState<FileRowExtended | null>(null);
+
+  const openPreview = async (f: FileRowExtended) => {
+    if (previewId === f.id) {
+      setPreviewId(null);
+      setPreviewUrl(null);
+      return;
+    }
+    setPreviewId(f.id);
+    setPreviewUrl(null);
+    setPreviewLoading(true);
+    const { data } = await (supabase as SupabaseClient)
+      .storage.from(f.bucket).createSignedUrl(f.storage_path, 300);
+    setPreviewUrl(data?.signedUrl ?? null);
+    setPreviewLoading(false);
+    if (onOpen) onOpen(f);
+  };
 
   const verify = async (file: FileRowExtended) => {
     setBusy(true);
@@ -349,9 +380,7 @@ export function DocumentsSection({
     setBusy(false);
   };
 
-  const reject = async (file: FileRowExtended) => {
-    const reason = window.prompt("سبب رفض الوثيقة؟")?.trim();
-    if (!reason) return;
+  const reject = async (file: FileRowExtended, reason: string) => {
     setBusy(true);
     const { error } = await (supabase as SupabaseClient)
       .from("aid_request_files")
@@ -375,57 +404,167 @@ export function DocumentsSection({
     setBusy(false);
   };
 
+  const KIND_LABELS: Record<string, string> = {
+    lebanese_id: "هوية لبنانية",
+    passport: "جواز سفر",
+    id_doc: "وثيقة هوية",
+  };
+
   return (
     <Card title="الوثائق">
-      <ul className="space-y-3 text-sm">
+      <ul className="space-y-4 text-sm">
         {files.length === 0 && <li className="text-xs text-muted-foreground">لا توجد وثائق مرفقة.</li>}
-        {files.map((f) => (
-          <li key={f.id} className="rounded-md border border-border/60 p-3">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div>
-                <div className="font-mono text-xs">{f.kind}</div>
-                <div className="text-[11px] text-muted-foreground">{f.storage_path}</div>
-                {f.doc_admin_verified === true && (
-                  <span className="mt-1 inline-block text-xs text-success">تم التحقق</span>
-                )}
-                {f.doc_rejection_reason && (
-                  <span className="mt-1 inline-block text-xs text-destructive">مرفوض: {f.doc_rejection_reason}</span>
-                )}
+        {files.map((f) => {
+          const isOpen = previewId === f.id;
+          const isImage = isImageMime(f.mime, f.storage_path);
+          const isPdf = isPdfMime(f.mime, f.storage_path);
+          return (
+            <li key={f.id} className="rounded-md border border-border/60 overflow-hidden">
+              <div className="flex flex-wrap items-start justify-between gap-2 p-3">
+                <div>
+                  <div className="font-medium text-xs">{KIND_LABELS[f.kind] ?? f.kind}</div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5 font-mono break-all">
+                    {f.storage_path.split("/").pop()}
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    {f.doc_admin_verified === true && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-success/40 bg-success/10 px-2 py-0.5 text-[10px] text-success">
+                        ✓ تم التحقق
+                      </span>
+                    )}
+                    {f.doc_admin_verified === false && !f.doc_rejection_reason && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-[10px] text-warning">
+                        بانتظار
+                      </span>
+                    )}
+                    {f.doc_rejection_reason && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-destructive/40 bg-destructive/10 px-2 py-0.5 text-[10px] text-destructive">
+                        مرفوض: {f.doc_rejection_reason}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    type="button"
+                    onClick={() => void openPreview(f)}
+                    className={[
+                      "rounded-md border px-2 py-1 text-xs transition",
+                      isOpen
+                        ? "border-clay bg-clay/10 text-clay"
+                        : "border-border bg-background hover:border-clay",
+                    ].join(" ")}
+                  >
+                    {isOpen ? "إخفاء" : "عرض"}
+                  </button>
+                  {previewUrl && isOpen && (
+                    <a
+                      href={previewUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-md border border-border bg-background px-2 py-1 text-xs hover:border-foreground/40"
+                    >
+                      ↗ فتح
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void verify(f)}
+                    className="rounded-md border border-success/40 bg-success/10 px-2 py-1 text-xs text-success disabled:opacity-50"
+                  >
+                    تحقق
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setRejectTarget(f)}
+                    className="rounded-md border border-destructive/40 bg-destructive/10 px-2 py-1 text-xs text-destructive disabled:opacity-50"
+                  >
+                    رفض
+                  </button>
+                </div>
               </div>
-              <div className="flex flex-wrap gap-1">
-                <button
-                  type="button"
-                  onClick={() => onOpen(f)}
-                  className="rounded-md border border-border bg-background px-2 py-1 text-xs hover:border-clay"
-                >
-                  عرض
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void verify(f)}
-                  className="rounded-md border border-success/40 bg-success/10 px-2 py-1 text-xs text-success disabled:opacity-50"
-                >
-                  تحقق
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void reject(f)}
-                  className="rounded-md border border-destructive/40 bg-destructive/10 px-2 py-1 text-xs text-destructive disabled:opacity-50"
-                >
-                  رفض
-                </button>
-              </div>
-            </div>
-          </li>
-        ))}
+
+              {isOpen && (
+                <div className="border-t border-border/60 bg-surface">
+                  {previewLoading && (
+                    <div className="flex items-center justify-center py-10 text-xs text-muted-foreground">
+                      جارٍ تحميل الوثيقة...
+                    </div>
+                  )}
+                  {!previewLoading && !previewUrl && (
+                    <div className="flex items-center justify-center py-10 text-xs text-muted-foreground">
+                      تعذّر تحميل الوثيقة.
+                    </div>
+                  )}
+                  {!previewLoading && previewUrl && isImage && (
+                    <img
+                      src={previewUrl}
+                      alt={KIND_LABELS[f.kind] ?? f.kind}
+                      className="mx-auto block max-h-[520px] w-full object-contain p-2"
+                    />
+                  )}
+                  {!previewLoading && previewUrl && isPdf && (
+                    <iframe
+                      src={previewUrl}
+                      title={KIND_LABELS[f.kind] ?? f.kind}
+                      className="h-[600px] w-full"
+                    />
+                  )}
+                  {!previewLoading && previewUrl && !isImage && !isPdf && (
+                    <div className="flex flex-col items-center justify-center gap-3 py-10 text-sm text-muted-foreground">
+                      <p>لا يمكن معاينة هذا النوع من الملفات مباشرة.</p>
+                      <a
+                        href={previewUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-md border border-clay px-4 py-2 text-xs text-clay hover:bg-clay/10"
+                      >
+                        تحميل الملف
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
+            </li>
+          );
+        })}
       </ul>
+
+      <AdminActionModal
+        open={rejectTarget != null}
+        title="رفض الوثيقة"
+        description="يُبلَّغ مقدّم الطلب بضرورة إعادة رفع وثيقة صالحة."
+        preview={
+          rejectTarget
+            ? [
+                { label: "نوع الوثيقة", value: KIND_LABELS[rejectTarget.kind] ?? rejectTarget.kind },
+                { label: "الملف", value: rejectTarget.storage_path.split("/").pop() ?? "—" },
+              ]
+            : undefined
+        }
+        cannedReasons={[
+          "صورة غير واضحة",
+          "وثيقة منتهية الصلاحية",
+          "لا تطابق بيانات الطلب",
+          "نوع وثيقة خاطئ",
+        ]}
+        reasonLabel="سبب الرفض"
+        requireReason
+        confirmLabel="رفض الوثيقة"
+        variant="destructive"
+        busy={busy}
+        onClose={() => setRejectTarget(null)}
+        onConfirm={async ({ reason }) => {
+          if (!rejectTarget) return;
+          await reject(rejectTarget, reason);
+          setRejectTarget(null);
+        }}
+      />
     </Card>
   );
 }
-
-/* ---------- Fraud events ---------- */
 export function FraudEventsSection({
   requestId,
   referenceCode,
@@ -441,6 +580,7 @@ export function FraudEventsSection({
   const [resolved, setResolved] = useState<FraudEventRow[]>([]);
   const [showResolved, setShowResolved] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [resolveTarget, setResolveTarget] = useState<FraudEventRow | null>(null);
 
   const load = async () => {
     const { data } = await supabase.from("fraud_events").select("*").eq("request_id", requestId).order("created_at", { ascending: false });
@@ -453,9 +593,7 @@ export function FraudEventsSection({
     void load();
   }, [requestId]);
 
-  const resolve = async (event: FraudEventRow) => {
-    const note = window.prompt("ملاحظة الحلّ؟")?.trim();
-    if (!note) return;
+  const resolve = async (event: FraudEventRow, note: string) => {
     setBusy(true);
     const { data: u } = await supabase.auth.getUser();
     const { error } = await supabase
@@ -494,7 +632,7 @@ export function FraudEventsSection({
             <button
               type="button"
               disabled={busy}
-              onClick={() => void resolve(e)}
+              onClick={() => setResolveTarget(e)}
               className="mt-2 rounded-md border border-border bg-background px-2 py-1 text-xs hover:border-clay disabled:opacity-50"
             >
               حلّ الإشارة
@@ -523,6 +661,32 @@ export function FraudEventsSection({
           )}
         </div>
       )}
+      <AdminActionModal
+        open={resolveTarget != null}
+        title="حلّ إشارة الاحتيال"
+        description="سجّل كيف تم التحقق من الإشارة أو تبريرها."
+        preview={
+          resolveTarget
+            ? [{ label: "الرمز", value: <span dir="ltr" className="font-mono">{resolveTarget.code}</span> }]
+            : undefined
+        }
+        cannedReasons={[
+          "تم التحقق — لا مخالفة",
+          "خطأ في النظام",
+          "تكرار مشروع — تمت المراجعة",
+        ]}
+        reasonLabel="ملاحظة الحلّ"
+        requireReason
+        confirmLabel="تأكيد الحلّ"
+        variant="default"
+        busy={busy}
+        onClose={() => setResolveTarget(null)}
+        onConfirm={async ({ reason }) => {
+          if (!resolveTarget) return;
+          await resolve(resolveTarget, reason);
+          setResolveTarget(null);
+        }}
+      />
     </Card>
   );
 }

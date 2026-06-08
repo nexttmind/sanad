@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   defaultDateRange,
   distributionProgress,
@@ -14,6 +15,7 @@ import {
   vulnerabilityCounts,
   type TrendPeriod,
 } from "@/lib/analytics";
+import { adminQueryOptions } from "@/lib/admin-query";
 
 export const Route = createFileRoute("/admin/analytics")({
   component: Analytics,
@@ -32,30 +34,19 @@ function Analytics() {
   const [fromStr, setFromStr] = useState(toDateInputValue(initial.from));
   const [toStr, setToStr] = useState(toDateInputValue(initial.to));
   const [period, setPeriod] = useState<TrendPeriod>("weekly");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [snapshot, setSnapshot] = useState<Awaited<ReturnType<typeof fetchAnalyticsData>> | null>(null);
-
   const range = useMemo(() => parseDateRange(fromStr, toStr), [fromStr, toStr]);
 
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await fetchAnalyticsData(range);
-        if (alive) setSnapshot(data);
-      } catch (err) {
-        if (import.meta.env.DEV) console.error("[Analytics]", err);
-        if (alive) setError("تعذّر تحميل بيانات التحليلات.");
-      }
-      if (alive) setLoading(false);
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [fromStr, toStr]);
+  const {
+    data: snapshot,
+    isLoading: loading,
+    error,
+  } = useQuery({
+    queryKey: ["admin", "analytics", fromStr, toStr],
+    queryFn: () => fetchAnalyticsData(range),
+    ...adminQueryOptions,
+  });
+
+  const loadError = error ? "تعذّر تحميل بيانات التحليلات." : null;
 
   const rows = snapshot?.requests ?? [];
   const fraud = snapshot?.fraudEvents ?? [];
@@ -118,9 +109,9 @@ function Analytics() {
         </div>
       </div>
 
-      {error && (
+      {loadError && (
         <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
+          {loadError}
         </div>
       )}
 
