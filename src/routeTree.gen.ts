@@ -18,7 +18,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminScoringRouteImport } from './routes/admin.scoring'
-import { Route as AdminRequestsRouteImport } from './routes/admin.requests'
 import { Route as AdminReferencesRouteImport } from './routes/admin.references'
 import { Route as AdminQueueRouteImport } from './routes/admin.queue'
 import { Route as AdminPublicSettingsRouteImport } from './routes/admin.public-settings'
@@ -26,6 +25,7 @@ import { Route as AdminDonationsRouteImport } from './routes/admin.donations'
 import { Route as AdminDistributionRouteImport } from './routes/admin.distribution'
 import { Route as AdminAuditRouteImport } from './routes/admin.audit'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin.analytics'
+import { Route as AdminRequestsIndexRouteImport } from './routes/admin.requests.index'
 import { Route as AdminRequestsIdRouteImport } from './routes/admin.requests.$id'
 
 const TrackRoute = TrackRouteImport.update({
@@ -73,11 +73,6 @@ const AdminScoringRoute = AdminScoringRouteImport.update({
   path: '/scoring',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminRequestsRoute = AdminRequestsRouteImport.update({
-  id: '/requests',
-  path: '/requests',
-  getParentRoute: () => AdminRoute,
-} as any)
 const AdminReferencesRoute = AdminReferencesRouteImport.update({
   id: '/references',
   path: '/references',
@@ -113,10 +108,15 @@ const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminRequestsIndexRoute = AdminRequestsIndexRouteImport.update({
+  id: '/requests/',
+  path: '/requests/',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminRequestsIdRoute = AdminRequestsIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AdminRequestsRoute,
+  id: '/requests/$id',
+  path: '/requests/$id',
+  getParentRoute: () => AdminRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -133,11 +133,11 @@ export interface FileRoutesByFullPath {
   '/admin/public-settings': typeof AdminPublicSettingsRoute
   '/admin/queue': typeof AdminQueueRoute
   '/admin/references': typeof AdminReferencesRoute
-  '/admin/requests': typeof AdminRequestsRouteWithChildren
   '/admin/scoring': typeof AdminScoringRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/requests/$id': typeof AdminRequestsIdRoute
+  '/admin/requests/': typeof AdminRequestsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -152,11 +152,11 @@ export interface FileRoutesByTo {
   '/admin/public-settings': typeof AdminPublicSettingsRoute
   '/admin/queue': typeof AdminQueueRoute
   '/admin/references': typeof AdminReferencesRoute
-  '/admin/requests': typeof AdminRequestsRouteWithChildren
   '/admin/scoring': typeof AdminScoringRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin': typeof AdminIndexRoute
   '/admin/requests/$id': typeof AdminRequestsIdRoute
+  '/admin/requests': typeof AdminRequestsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -173,11 +173,11 @@ export interface FileRoutesById {
   '/admin/public-settings': typeof AdminPublicSettingsRoute
   '/admin/queue': typeof AdminQueueRoute
   '/admin/references': typeof AdminReferencesRoute
-  '/admin/requests': typeof AdminRequestsRouteWithChildren
   '/admin/scoring': typeof AdminScoringRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/requests/$id': typeof AdminRequestsIdRoute
+  '/admin/requests/': typeof AdminRequestsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -195,11 +195,11 @@ export interface FileRouteTypes {
     | '/admin/public-settings'
     | '/admin/queue'
     | '/admin/references'
-    | '/admin/requests'
     | '/admin/scoring'
     | '/admin/users'
     | '/admin/'
     | '/admin/requests/$id'
+    | '/admin/requests/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -214,11 +214,11 @@ export interface FileRouteTypes {
     | '/admin/public-settings'
     | '/admin/queue'
     | '/admin/references'
-    | '/admin/requests'
     | '/admin/scoring'
     | '/admin/users'
     | '/admin'
     | '/admin/requests/$id'
+    | '/admin/requests'
   id:
     | '__root__'
     | '/'
@@ -234,11 +234,11 @@ export interface FileRouteTypes {
     | '/admin/public-settings'
     | '/admin/queue'
     | '/admin/references'
-    | '/admin/requests'
     | '/admin/scoring'
     | '/admin/users'
     | '/admin/'
     | '/admin/requests/$id'
+    | '/admin/requests/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -315,13 +315,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminScoringRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/requests': {
-      id: '/admin/requests'
-      path: '/requests'
-      fullPath: '/admin/requests'
-      preLoaderRoute: typeof AdminRequestsRouteImport
-      parentRoute: typeof AdminRoute
-    }
     '/admin/references': {
       id: '/admin/references'
       path: '/references'
@@ -371,27 +364,22 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAnalyticsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/requests/': {
+      id: '/admin/requests/'
+      path: '/requests'
+      fullPath: '/admin/requests/'
+      preLoaderRoute: typeof AdminRequestsIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/requests/$id': {
       id: '/admin/requests/$id'
-      path: '/$id'
+      path: '/requests/$id'
       fullPath: '/admin/requests/$id'
       preLoaderRoute: typeof AdminRequestsIdRouteImport
-      parentRoute: typeof AdminRequestsRoute
+      parentRoute: typeof AdminRoute
     }
   }
 }
-
-interface AdminRequestsRouteChildren {
-  AdminRequestsIdRoute: typeof AdminRequestsIdRoute
-}
-
-const AdminRequestsRouteChildren: AdminRequestsRouteChildren = {
-  AdminRequestsIdRoute: AdminRequestsIdRoute,
-}
-
-const AdminRequestsRouteWithChildren = AdminRequestsRoute._addFileChildren(
-  AdminRequestsRouteChildren,
-)
 
 interface AdminRouteChildren {
   AdminAnalyticsRoute: typeof AdminAnalyticsRoute
@@ -401,10 +389,11 @@ interface AdminRouteChildren {
   AdminPublicSettingsRoute: typeof AdminPublicSettingsRoute
   AdminQueueRoute: typeof AdminQueueRoute
   AdminReferencesRoute: typeof AdminReferencesRoute
-  AdminRequestsRoute: typeof AdminRequestsRouteWithChildren
   AdminScoringRoute: typeof AdminScoringRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminIndexRoute: typeof AdminIndexRoute
+  AdminRequestsIdRoute: typeof AdminRequestsIdRoute
+  AdminRequestsIndexRoute: typeof AdminRequestsIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
@@ -415,10 +404,11 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminPublicSettingsRoute: AdminPublicSettingsRoute,
   AdminQueueRoute: AdminQueueRoute,
   AdminReferencesRoute: AdminReferencesRoute,
-  AdminRequestsRoute: AdminRequestsRouteWithChildren,
   AdminScoringRoute: AdminScoringRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminIndexRoute: AdminIndexRoute,
+  AdminRequestsIdRoute: AdminRequestsIdRoute,
+  AdminRequestsIndexRoute: AdminRequestsIndexRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)

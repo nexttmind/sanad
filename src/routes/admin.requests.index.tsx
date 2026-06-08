@@ -99,13 +99,17 @@ function timeAgo(iso: string) {
   return `قبل ${Math.floor(diff / 86400)} ي`;
 }
 
-export const Route = createFileRoute("/admin/requests")({
+export const Route = createFileRoute("/admin/requests/")({
   component: RequestsList,
   validateSearch: (search: Record<string, unknown>) => ({
     sort: typeof search.sort === "string" ? search.sort : undefined,
     dir: typeof search.dir === "string" ? search.dir : undefined,
     q: typeof search.q === "string" ? search.q : undefined,
-  }),
+  }) as {
+    sort?: string;
+    dir?: string;
+    q?: string;
+  },
 });
 
 function RequestsList() {
@@ -704,7 +708,7 @@ function RequestsList() {
                       <div className="font-mono text-xs">{s.trust_score}</div>
                       <div className="mt-1 h-1 w-14 overflow-hidden rounded-full bg-muted">
                         <div
-                          className={[
+                           className={[
                             "h-full",
                             s.trust_score >= 75
                               ? "bg-success"

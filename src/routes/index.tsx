@@ -302,7 +302,7 @@ function RequestHome() {
       void precheckAidSubmission({
         phone: phone.trim(),
         ...(docReady
-          ? { national_id: docNumber.trim(), document_type: documentType }
+          ? { national_id: docNumber.trim(), document_type: documentType ?? undefined }
           : {}),
       }).then((result) => {
         if (!result.ok) return;
@@ -680,7 +680,7 @@ function RequestHome() {
           {displaced && (
             <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
               <div data-err="origin">
-                <Field label="منطقة المنشأ" required error={show("origin") ? errors.origin : null}>
+                <Field label="قضاء" required error={show("origin") ? errors.origin : null}>
                   <select className={cls(!!(show("origin") && errors.origin))} value={origin} onChange={(e) => setOrigin(e.target.value)} onBlur={touch("origin")}>
                     <option value="">اختر المنطقة</option>
                     {REGIONS.map((r) => <option key={r}>{r}</option>)}
@@ -688,7 +688,7 @@ function RequestHome() {
                 </Field>
               </div>
               <div data-err="originVillage">
-                <Field label="قرية أو بلدة المنشأ" required error={show("originVillage") ? errors.originVillage : null}>
+                <Field label="مكان الاقامة قبل النزوح" required error={show("originVillage") ? errors.originVillage : null}>
                   <input placeholder="مثال: عيترون" className={cls(!!(show("originVillage") && errors.originVillage))} value={originVillage} onChange={(e) => setOriginVillage(e.target.value)} onBlur={touch("originVillage")} />
                 </Field>
               </div>
