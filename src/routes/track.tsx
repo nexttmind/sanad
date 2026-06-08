@@ -440,8 +440,8 @@ function FoundResult({
             <dl className="grid grid-cols-1 gap-x-6 gap-y-4 border-t border-border px-5 py-5 sm:grid-cols-2 sm:px-6">
               <Row label="الاسم" value={sub.name} />
               <Row label="رقم الهاتف" value={maskPhone(sub.phone)} ltr />
-              <Row label="منطقة المنشأ" value={sub.region} />
-              <Row label="القرية" value={sub.village} />
+              <Row label="قضاء" value={sub.region} />
+              <Row label="مكان الاقامة قبل النزوح" value={sub.village} />
               <Row label="عدد أفراد العائلة" value={String(sub.familySize)} />
               <Row label="نوع المأوى" value={sub.shelter} />
               <div className="sm:col-span-2">

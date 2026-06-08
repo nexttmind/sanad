@@ -38,7 +38,7 @@ export const EDITABLE_FIELD_LABELS: Record<string, string> = {
   town: "البلدة",
   housing_type: "نوع المأوى",
   current_address: "العنوان الحالي",
-  origin_town: "بلدة المنشأ",
+  origin_town: "مكان الاقامة قبل النزوح",
   displaced: "نازح",
   displacement_date: "تاريخ النزوح",
   family_size: "حجم العائلة",

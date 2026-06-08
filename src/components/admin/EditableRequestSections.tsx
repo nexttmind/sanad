@@ -399,7 +399,7 @@ export function EditableRequestSections({ request, requestId, actorName, onSaved
                 نعم
               </label>
             </EditRow>
-            <EditRow label="بلدة المنشأ">
+            <EditRow label="مكان الاقامة قبل النزوح">
               <input
                 className={inputCls}
                 value={draft.origin_town}
@@ -425,7 +425,7 @@ export function EditableRequestSections({ request, requestId, actorName, onSaved
             <Row label="العنوان الحالي" value={request.current_address} />
             <Row label="نوع المأوى" value={request.housing_type} />
             <Row label="نازح" value={request.displaced ? "نعم" : "لا"} />
-            <Row label="بلدة المنشأ" value={request.origin_town} />
+            <Row label="مكان الاقامة قبل النزوح" value={request.origin_town} />
             <Row label="تاريخ النزوح" value={request.displacement_date} />
           </>
         )}

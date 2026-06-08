@@ -753,7 +753,11 @@ function RequestsList() {
                       {timeAgo(s.queued_at ?? s.created_at)}
                     </td>
                     <td className="px-4 py-3 text-left">
-                      <Link to="/admin/requests/$id" params={{ id: s.id }} className="text-clay hover:underline">
+                      <Link 
+                        to="/admin/requests/$id" 
+                        params={{ id: s.id }} 
+                        className="inline-flex items-center justify-center rounded-md bg-clay/10 px-3 py-1.5 text-xs font-medium text-clay transition-colors hover:bg-clay/20 active:bg-clay/30"
+                      >
                         عرض
                       </Link>
                     </td>

@@ -60,7 +60,11 @@ export function AdminMobileCardLink({
   children: ReactNode;
 }) {
   return (
-    <Link to={to} params={params} className="text-xs font-medium text-clay hover:underline">
+    <Link 
+      to={to} 
+      params={params} 
+      className="inline-flex w-full items-center justify-center rounded-lg bg-clay/10 px-4 py-2.5 text-sm font-medium text-clay transition-colors hover:bg-clay/20 active:bg-clay/30"
+    >
       {children}
     </Link>
   );

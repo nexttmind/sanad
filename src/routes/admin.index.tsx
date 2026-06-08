@@ -184,7 +184,7 @@ function Overview() {
             <div className="rounded-xl border border-border bg-card">
               <div className="flex items-center justify-between border-b border-border px-5 py-3">
                 <div className="font-display text-base">أولوية الدور الآن</div>
-                <Link to="/admin/queue" className="text-[11px] text-clay hover:underline">
+                <Link to="/admin/queue" className="rounded-md border border-clay/30 bg-clay/5 px-3 py-1.5 text-[11px] text-clay transition hover:bg-clay/10 active:bg-clay/20">
                   عرض الدور الكامل
                 </Link>
               </div>
@@ -193,36 +193,42 @@ function Overview() {
                   const urg = s.effective_urgency ?? s.urgency_score;
                   const tierKey = (s.urgency_tier ?? "medium") as UrgencyTier;
                   return (
-                    <li key={s.id}>
-                      <Link
-                        to="/admin/requests/$id"
-                        params={{ id: s.id }}
-                        className="flex flex-col gap-1.5 px-4 py-3 text-sm transition hover:bg-surface sm:flex-row sm:items-center sm:gap-4 sm:px-5"
-                      >
+                    <li key={s.id} className="transition hover:bg-surface">
+                      <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
                         <div className="flex min-w-0 items-center gap-3 sm:flex-1">
                           <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
                             {formatQueueNumber(s.queue_number)}
                           </span>
                           <div className="min-w-0 flex-1">
-                            <div className="truncate font-medium">{s.full_name}</div>
+                            <div className="truncate font-medium text-sm">{s.full_name}</div>
                             <div className="truncate text-[11px] text-muted-foreground">{s.governorate ?? "—"}</div>
                           </div>
                           <span className={["shrink-0 font-mono text-xs sm:hidden", urgencyScoreColor(urg)].join(" ")}>{urg}</span>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2 ps-8 text-xs sm:ps-0 sm:shrink-0">
-                          <span className={["hidden font-mono sm:inline", urgencyScoreColor(urg)].join(" ")}>{urg}</span>
-                          {s.urgency_tier && (
-                            <span
-                              className={[
-                                "hidden rounded-full border px-2 py-0.5 text-[10px] sm:inline",
-                                TIER_BADGE_CLASS[tierKey],
-                              ].join(" ")}
-                            >
-                              {TIER_LABELS[tierKey]}
-                            </span>
-                          )}
+                        <div className="flex flex-col gap-3 sm:items-end sm:justify-center">
+                          <div className="hidden items-center gap-2 text-xs sm:flex">
+                            <span className={["font-mono", urgencyScoreColor(urg)].join(" ")}>{urg}</span>
+                            {s.urgency_tier && (
+                              <span
+                                className={[
+                                  "rounded-full border px-2 py-0.5 text-[10px]",
+                                  TIER_BADGE_CLASS[tierKey],
+                                ].join(" ")}
+                              >
+                                {TIER_LABELS[tierKey]}
+                              </span>
+                            )}
+                          </div>
+                          <Link
+                            to="/admin/requests/$id"
+                            params={{ id: s.id }}
+                            className="inline-flex w-full items-center justify-center rounded-lg bg-clay/10 px-4 py-2 text-xs font-medium text-clay transition-colors hover:bg-clay/20 active:bg-clay/30 sm:w-auto sm:rounded-md sm:px-3 sm:py-1.5"
+                          >
+                            <span className="sm:hidden">عرض التفاصيل ←</span>
+                            <span className="hidden sm:inline">عرض</span>
+                          </Link>
                         </div>
-                      </Link>
+                      </div>
                     </li>
                   );
                 })}
@@ -245,34 +251,40 @@ function Overview() {
               {recentRows.map((s) => {
                 const urg = s.effective_urgency ?? s.urgency_score;
                 return (
-                  <li key={s.id}>
-                    <Link
-                      to="/admin/requests/$id"
-                      params={{ id: s.id }}
-                      className="flex flex-col gap-1.5 px-4 py-3 text-sm transition hover:bg-surface sm:flex-row sm:items-center sm:gap-3 sm:px-5"
-                    >
+                  <li key={s.id} className="transition hover:bg-surface">
+                    <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
                       <div className="flex min-w-0 items-start gap-3 sm:flex-1">
-                        <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                        <span className="shrink-0 font-mono text-[10px] text-muted-foreground mt-0.5">
                           {formatQueueNumber(s.queue_number)}
                         </span>
                         <div className="min-w-0 flex-1">
-                          <div className="truncate font-medium">{s.full_name}</div>
+                          <div className="truncate font-medium text-sm">{s.full_name}</div>
                           <div dir="ltr" className="truncate font-mono text-[10px] text-muted-foreground">
                             {s.reference_code}
                           </div>
                         </div>
                       </div>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 ps-8 text-xs sm:ps-0">
-                        <span className="text-muted-foreground">{s.governorate ?? "—"}</span>
-                        <span className="font-mono">ثقة {s.trust_score}</span>
-                        <span className={["font-mono", urgencyScoreColor(urg)].join(" ")}>
-                          عجلة {urg}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground sm:ms-auto">
-                          {timeAgo(s.queued_at ?? s.created_at)}
-                        </span>
+                      <div className="flex flex-col gap-3 sm:items-end">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                          <span className="text-muted-foreground">{s.governorate ?? "—"}</span>
+                          <span className="font-mono">ثقة {s.trust_score}</span>
+                          <span className={["font-mono", urgencyScoreColor(urg)].join(" ")}>
+                            عجلة {urg}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {timeAgo(s.queued_at ?? s.created_at)}
+                          </span>
+                        </div>
+                        <Link
+                          to="/admin/requests/$id"
+                          params={{ id: s.id }}
+                          className="inline-flex w-full items-center justify-center rounded-lg bg-clay/10 px-4 py-2 text-xs font-medium text-clay transition-colors hover:bg-clay/20 active:bg-clay/30 sm:w-auto sm:rounded-md sm:px-3 sm:py-1.5"
+                        >
+                          <span className="sm:hidden">عرض التفاصيل ←</span>
+                          <span className="hidden sm:inline">عرض</span>
+                        </Link>
                       </div>
-                    </Link>
+                    </div>
                   </li>
                 );
               })}

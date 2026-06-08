@@ -116,8 +116,8 @@ export function validateAidRequestForm(input: AidRequestFormInput): Record<strin
   }
 
   if (input.displaced) {
-    if (!input.origin) errors.origin = "يرجى اختيار منطقة المنشأ";
-    if (!input.originVillage.trim()) errors.originVillage = "يرجى إدخال قرية المنشأ";
+    if (!input.origin) errors.origin = "يرجى اختيار قضاء";
+    if (!input.originVillage.trim()) errors.originVillage = "يرجى إدخال مكان الاقامة قبل النزوح";
     if (!input.currentLoc.trim()) errors.currentLoc = "يرجى إدخال الموقع الحالي";
     if (!input.shelter) errors.shelter = "يرجى اختيار نوع المأوى";
     if (input.showSchoolName && !input.shelterName.trim()) {
