@@ -64,7 +64,7 @@ function CopyRow({ label, value, href }: { label: string; value: string; href?: 
       <button
         type="button"
         onClick={() => { navigator.clipboard.writeText(value); setC(true); setTimeout(() => setC(false), 1200); }}
-        className="shrink-0 rounded-full border border-border bg-background px-2.5 py-1 text-[11px] hover:border-clay hover:text-clay"
+        className="touch-target shrink-0 rounded-full border border-border bg-background px-4 py-2 text-xs hover:border-clay hover:text-clay"
       >
         {c ? "نُسخ ✓" : "نسخ"}
       </button>
@@ -87,10 +87,10 @@ function OneClickContact({
       <a href={telHref(phone)} dir="ltr" className="mt-1 block font-mono text-lg text-clay hover:underline">
         {display}
       </a>
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <a
           href={telHref(phone)}
-          className="inline-flex flex-1 items-center justify-center rounded-full bg-foreground px-4 py-2.5 text-[13px] font-medium text-background transition hover:bg-clay"
+          className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full bg-foreground px-4 py-3 text-[13px] font-medium text-background transition hover:bg-clay"
         >
           اتصال مباشر
         </a>
@@ -98,7 +98,7 @@ function OneClickContact({
           href={whatsappHref(phone)}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex flex-1 items-center justify-center rounded-full border border-border px-4 py-2.5 text-[13px] font-medium transition hover:border-clay hover:text-clay"
+          className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full border border-border px-4 py-3 text-[13px] font-medium transition hover:border-clay hover:text-clay"
         >
           واتساب
         </a>
@@ -121,7 +121,7 @@ function Hero() {
     return () => clearInterval(id);
   }, []);
   return (
-    <section className="relative isolate min-h-[88vh] overflow-hidden bg-ink text-white">
+    <section className="relative isolate min-h-[72vh] overflow-hidden bg-ink text-white sm:min-h-[88vh]">
       {/* cycling frames */}
       <div className="absolute inset-0">
         {heroFrames.map((f, idx) => (
@@ -140,21 +140,21 @@ function Hero() {
       </div>
 
       {/* logo mark — top corner of hero (RTL: visually top-right) */}
-      <div className="pointer-events-none absolute end-5 top-24 z-10 sm:end-6 sm:top-28 lg:end-10">
+      <div className="pointer-events-none absolute end-4 top-[max(5.5rem,calc(env(safe-area-inset-top)+4.5rem))] z-10 sm:end-6 lg:end-10">
         <div className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-white/40 bg-white/95 p-1.5 shadow-lg sm:h-16 sm:w-16">
           <img src={sanadLogoPhoto} alt="شعار سند" className="h-full w-full scale-[1.15] object-contain" />
         </div>
       </div>
 
       {/* content */}
-      <div className="relative mx-auto flex min-h-[88vh] max-w-6xl flex-col px-5 pb-12 pt-28 sm:px-6 sm:pt-32 lg:px-10">
-        <div className="fade-soft flex items-center gap-2 text-[10px] uppercase tracking-[0.32em] text-white/70">
+      <div className="relative mx-auto flex min-h-[72vh] max-w-6xl flex-col px-4 pb-10 public-nav-offset sm:min-h-[88vh] sm:px-6 sm:pb-12 lg:px-10">
+        <div className="fade-soft flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.24em] text-white/70 sm:tracking-[0.32em]">
           <span className="live-dot h-1.5 w-1.5 rounded-full bg-clay" />
           تبرّع عبر Whish — أو تواصل للقنوات الأخرى
         </div>
 
         <div className="mt-auto max-w-3xl">
-          <div className="rise font-display text-4xl leading-[1.05] sm:text-6xl md:text-7xl">
+          <div className="rise font-display text-3xl leading-[1.08] sm:text-6xl md:text-7xl">
             ليس تبرّعاً.
             <br />
             <span className="text-clay">إنّه موقف.</span>
@@ -163,13 +163,13 @@ function Hero() {
             في سند، لا نطلب منك أن تمنح. نطلب منك أن تقف. تبرّعك يُوجَّه مباشرةً إلى العائلات المعتمدة — بلا وسطاء.
           </p>
 
-          <div className="rise mt-7 flex flex-wrap items-center gap-3">
-            <a href="#methods" className="rounded-full bg-clay px-6 py-3 text-[13px] font-medium text-white transition hover:bg-clay/90 sm:text-sm">
+          <div className="rise mt-7 flex w-full max-w-md flex-col items-stretch gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center">
+            <a href="#methods" className="touch-target rounded-full bg-clay px-6 py-3 text-center text-[13px] font-medium text-white transition hover:bg-clay/90 sm:text-sm">
               Whish — تبرّع الآن ↓
             </a>
             <a
               href={telHref(ALT_DONATION_PHONE)}
-              className="rounded-full border border-white/30 px-5 py-3 text-[13px] text-white/90 transition hover:bg-white/10 sm:text-sm"
+              className="touch-target rounded-full border border-white/30 px-5 py-3 text-center text-[13px] text-white/90 transition hover:bg-white/10 sm:text-sm"
             >
               قناة أخرى؟ اتصل بنا
             </a>
@@ -189,7 +189,7 @@ function Promise() {
   ];
   return (
     <section className="border-t border-border bg-background">
-      <div className="mx-auto max-w-6xl px-5 py-14 sm:px-6 sm:py-20 lg:px-10">
+      <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20 lg:px-10">
         <Kicker>تعهّدنا لك</Kicker>
         <h2 className="mt-3 max-w-2xl font-display text-3xl leading-tight sm:text-4xl md:text-5xl">
           ثلاثة وعود. مكتوبة. وموقّعة.
@@ -236,7 +236,7 @@ function Allocate({
 
   return (
     <section id="allocate" className="bg-surface-2/40">
-      <div className="mx-auto max-w-6xl px-5 py-14 sm:px-6 sm:py-20 lg:px-10">
+      <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20 lg:px-10">
         <div className="grid gap-10 lg:grid-cols-[1fr_1.1fr] lg:gap-16">
           <div>
             <Kicker>اختَر أثرك</Kicker>
@@ -249,14 +249,14 @@ function Allocate({
 
             <div className="mt-8">
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground">المبلغ بالدولار</div>
-              <div className="mt-3 grid grid-cols-3 gap-1.5 sm:grid-cols-5 sm:gap-2">
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5">
                 {allocations.map((a) => (
                   <button
                     key={a.amt}
                     type="button"
                     onClick={() => { onAmountChange(a.amt); setCustom(""); }}
                     className={[
-                      "rounded-xl border px-1.5 py-2.5 font-display text-sm transition sm:px-2 sm:py-3 sm:text-lg",
+                      "min-h-11 rounded-xl border px-2 py-3 font-display text-base transition sm:px-2 sm:text-lg",
                       eff === a.amt && !custom ? "border-clay bg-clay text-white" : "border-border bg-background hover:border-clay/60",
                     ].join(" ")}
                   >${a.amt}</button>
@@ -288,7 +288,7 @@ function Allocate({
               </div>
 
               <div className="mt-6 flex items-baseline gap-3">
-                <div className="font-display text-6xl leading-none text-foreground sm:text-7xl">${eff || 0}</div>
+                <div className="font-display text-5xl leading-none text-foreground sm:text-6xl md:text-7xl">${eff || 0}</div>
                 <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">USD</div>
               </div>
 
@@ -335,7 +335,7 @@ function Methods({
 
   return (
     <section id="methods" className="bg-background">
-      <div className="mx-auto max-w-6xl px-5 py-14 sm:px-6 sm:py-20 lg:px-10">
+      <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20 lg:px-10">
         <Kicker>طرق الدفع</Kicker>
         <h2 className="mt-3 font-display text-3xl leading-tight sm:text-4xl md:text-5xl">
           Whish Money <span className="text-clay">— الأسرع محلياً.</span>
@@ -387,7 +387,7 @@ function Ledger({ rows }: { rows: LedgerRow[] }) {
   const total = rows.reduce((s, r) => s + r.amount, 0);
   return (
     <section className="border-y border-border bg-surface">
-      <div className="mx-auto max-w-6xl px-5 py-14 sm:px-6 sm:py-20 lg:px-10">
+      <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20 lg:px-10">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <Kicker>السجلّ العلني</Kicker>
@@ -401,14 +401,46 @@ function Ledger({ rows }: { rows: LedgerRow[] }) {
           </div>
         </div>
 
-        <div className="table-scroll mt-8 overflow-x-auto rounded-2xl border border-border bg-background">
-          <table className="w-full min-w-[520px] text-right text-[13px] sm:min-w-0 sm:text-sm">
+        {/* Mobile: stacked cards */}
+        <div className="mt-8 space-y-3 md:hidden">
+          {rows.length === 0 && (
+            <div className="rounded-2xl border border-border bg-background px-4 py-8 text-center text-sm text-muted-foreground">
+              لا توجد تبرّعات موثّقة بعد.
+            </div>
+          )}
+          {rows.map((r) => (
+            <div key={r.reference_code} className="rounded-2xl border border-border bg-background p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="font-mono text-[12px] text-muted-foreground">{formatLedgerDate(r.created_at)}</div>
+                <div className="font-mono text-lg text-foreground">
+                  ${Math.round(r.amount)}
+                  <span className="ms-1 text-[10px] text-muted-foreground">{r.currency}</span>
+                </div>
+              </div>
+              <div className="mt-3 text-sm text-foreground">{ledgerItemLabel(r)}</div>
+              <div className="mt-2 text-[12px] text-muted-foreground">
+                {r.beneficiary_code ? (
+                  <span dir="ltr" className="font-mono">{formatBeneficiaryLabel(r.beneficiary_code)}</span>
+                ) : (
+                  formatBeneficiaryLabel(null)
+                )}
+                {r.donor_display && (
+                  <span className="mt-1 block">عبر {r.donor_display}</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop: table */}
+        <div className="table-scroll mt-8 hidden overflow-x-auto rounded-2xl border border-border bg-background md:block">
+          <table className="w-full text-right text-sm">
             <thead className="bg-surface/70 text-[10px] uppercase tracking-wider text-muted-foreground">
               <tr>
-                <th className="px-4 py-3 font-medium sm:px-5">التاريخ</th>
+                <th className="px-5 py-3 font-medium">التاريخ</th>
                 <th className="px-4 py-3 font-medium">المستفيد</th>
                 <th className="px-4 py-3 font-medium">العنصر</th>
-                <th className="hidden px-4 py-3 font-medium sm:table-cell">عبر</th>
+                <th className="px-4 py-3 font-medium">عبر</th>
                 <th className="px-4 py-3 text-left font-medium">المبلغ</th>
               </tr>
             </thead>
@@ -422,7 +454,7 @@ function Ledger({ rows }: { rows: LedgerRow[] }) {
               )}
               {rows.map((r) => (
                 <tr key={r.reference_code} className="hover:bg-surface/50">
-                  <td className="px-4 py-3 font-mono text-[12px] text-muted-foreground sm:px-5">{formatLedgerDate(r.created_at)}</td>
+                  <td className="px-5 py-3 font-mono text-[12px] text-muted-foreground">{formatLedgerDate(r.created_at)}</td>
                   <td
                     className="px-4 py-3 text-right text-[12px] text-foreground"
                     title={r.beneficiary_code ? "رمز طلب المساعدة للعائلة المدعومة" : "تبرّع للصندوق العام"}
@@ -436,7 +468,7 @@ function Ledger({ rows }: { rows: LedgerRow[] }) {
                     )}
                   </td>
                   <td className="px-4 py-3 text-foreground">{ledgerItemLabel(r)}</td>
-                  <td className="hidden px-4 py-3 text-muted-foreground sm:table-cell">{r.donor_display}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{r.donor_display}</td>
                   <td className="px-4 py-3 text-left font-mono text-foreground">
                     ${Math.round(r.amount)}
                     <span className="ms-1 text-[10px] text-muted-foreground">{r.currency}</span>
@@ -446,7 +478,7 @@ function Ledger({ rows }: { rows: LedgerRow[] }) {
             </tbody>
           </table>
         </div>
-        <p className="mt-4 text-[11px] text-muted-foreground sm:text-xs">
+        <p className="mt-4 text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
           عمود «المستفيد» يعرض رمز عائلة مدعومة أو «صندوق عام» للتبرّعات غير المخصّصة. السجل الكامل (آخر ٣٠
           يوماً) ينشر في تقريرنا الشهري.
         </p>
@@ -465,7 +497,7 @@ function Pledges({ items }: { items: PledgeMessage[] }) {
 
   return (
     <section className="bg-ink text-white">
-      <div className="mx-auto max-w-6xl px-5 py-14 sm:px-6 sm:py-20 lg:px-10">
+      <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20 lg:px-10">
         <Kicker>جدار التعهّدات</Kicker>
         <h2 className="mt-3 font-display text-3xl leading-tight text-white sm:text-4xl md:text-5xl">
           لأنّ المتبرّعين <span className="text-clay">يستحقّون أن يُسمَعوا أيضاً.</span>
@@ -502,7 +534,7 @@ function Faq() {
   const [open, setOpen] = useState<number | null>(0);
   return (
     <section className="bg-background">
-      <div className="mx-auto max-w-6xl px-5 py-14 sm:px-6 sm:py-20 lg:px-10">
+      <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20 lg:px-10">
         <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
           <div>
             <Kicker>المساءَلة</Kicker>
@@ -526,13 +558,13 @@ function Faq() {
               <li key={i}>
                 <button
                   onClick={() => setOpen(open === i ? null : i)}
-                  className="flex w-full items-center justify-between gap-4 py-5 text-right"
+                  className="flex w-full min-h-11 items-center justify-between gap-4 py-4 text-right"
                 >
-                  <span className="font-display text-base text-foreground sm:text-lg">{f.q}</span>
-                  <span className={["font-mono text-clay transition", open === i ? "rotate-45" : ""].join(" ")}>+</span>
+                  <span className="min-w-0 flex-1 font-display text-base leading-snug text-foreground sm:text-lg">{f.q}</span>
+                  <span className={["shrink-0 font-mono text-lg text-clay transition", open === i ? "rotate-45" : ""].join(" ")}>+</span>
                 </button>
                 {open === i && (
-                  <p className="pb-5 pl-6 text-[13px] leading-relaxed text-muted-foreground sm:text-sm">{f.a}</p>
+                  <p className="pb-5 pe-2 ps-6 text-[13px] leading-relaxed text-muted-foreground sm:text-sm">{f.a}</p>
                 )}
               </li>
             ))}
@@ -548,7 +580,7 @@ function FinalCTA() {
   return (
     <section className="relative isolate overflow-hidden bg-clay text-white">
       <div className="absolute inset-0 grain opacity-40" />
-      <div className="relative mx-auto max-w-4xl px-5 py-16 text-center sm:px-6 sm:py-24 lg:px-10">
+      <div className="relative mx-auto max-w-4xl px-4 py-16 text-center sm:px-6 sm:py-24 lg:px-10">
         <div className="font-mono text-[10px] uppercase tracking-[0.42em] text-white/70">قِف معنا</div>
         <h2 className="mt-4 font-display text-3xl leading-[1.05] sm:text-5xl md:text-6xl">
           الليلة، عائلةٌ ستنام أكثر دفئاً

@@ -173,7 +173,7 @@ function TrackPage() {
       <>
       {/* HEADER */}
       <section id="track-form" className="border-b border-border bg-surface">
-        <div className="mx-auto max-w-3xl px-5 pt-28 pb-12 sm:px-6 sm:pt-32 lg:px-10">
+        <div className="mx-auto max-w-3xl px-4 public-nav-offset pb-12 sm:px-6 lg:px-10">
           <p className="font-mono text-[10px] uppercase tracking-[0.4em] text-clay sm:text-[11px]">المتابعة</p>
           <h1 className="mt-3 font-display text-3xl leading-tight sm:text-4xl md:text-5xl">{config.track.page_title}</h1>
           <p className="mt-3 max-w-md text-[13px] text-muted-foreground sm:text-sm">
@@ -199,11 +199,11 @@ function TrackPage() {
                 required
               />
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <button disabled={loading} className="rounded-full bg-primary px-7 py-3 text-sm text-primary-foreground transition hover:bg-primary/90 disabled:opacity-60">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+              <button disabled={loading} className="touch-target rounded-full bg-primary px-7 py-3 text-sm text-primary-foreground transition hover:bg-primary/90 disabled:opacity-60">
                 {loading ? "جارٍ البحث..." : "تتبّع الطلب"}
               </button>
-              <p className="text-[11px] text-muted-foreground sm:text-xs">
+              <p className="text-[11px] leading-relaxed text-muted-foreground sm:max-w-xs sm:text-xs">
                 أدخل الرقم المرجعي ورقم الهاتف الذي استخدمته عند التقديم.
               </p>
             </div>
@@ -212,7 +212,7 @@ function TrackPage() {
       </section>
 
       {/* RESULT */}
-      <section id="result" className="mx-auto max-w-3xl px-5 py-12 sm:px-6 sm:py-16 lg:px-10">
+      <section id="result" className="mx-auto max-w-3xl px-4 py-12 sm:px-6 sm:py-16 lg:px-10">
         {searched && result === "not-found" && <NotFound config={config} onReset={reset} />}
         {searched && result === "rate-limited" && <RateLimited config={config} onReset={reset} />}
         {result && result !== "not-found" && result !== "rate-limited" && (
@@ -245,10 +245,10 @@ function NotFound({ config, onReset }: { config: PublicSiteConfig; onReset: () =
         ))}
       </ul>
       <div className="mt-6 flex flex-wrap gap-3">
-        <button onClick={onReset} className="rounded-full border border-border px-5 py-2.5 text-sm hover:border-foreground/40">
+        <button onClick={onReset} className="touch-target rounded-full border border-border px-5 py-2.5 text-sm hover:border-foreground/40">
           إعادة المحاولة
         </button>
-        <a href={phoneToTelHref(config.track.contact_phone)} className="rounded-full bg-primary px-5 py-2.5 text-sm text-primary-foreground hover:bg-primary/90">
+        <a href={phoneToTelHref(config.track.contact_phone)} className="touch-target rounded-full bg-primary px-5 py-2.5 text-sm text-primary-foreground hover:bg-primary/90">
           الاتصال بالفريق
         </a>
       </div>

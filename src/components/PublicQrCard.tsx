@@ -44,7 +44,7 @@ export function PublicQrCard({ referenceCode, requestId, instructions, compact }
       <button
         type="button"
         onClick={downloadQr}
-        className="rounded-full border border-border px-4 py-2 text-xs hover:border-clay"
+        className="touch-target rounded-full border border-border px-5 py-2.5 text-sm hover:border-clay"
       >
         تحميل الرمز
       </button>

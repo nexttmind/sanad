@@ -77,11 +77,11 @@ function Field({
 }: { label: string; children: React.ReactNode; hint?: string; required?: boolean; error?: string | null }) {
   return (
     <label className="block">
-      <div className="mb-1.5 flex items-baseline justify-between gap-2">
+      <div className="mb-1.5 flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-2">
         <span className="text-[13px] text-foreground sm:text-sm">
           {label} {required && <span className="text-clay">*</span>}
         </span>
-        {hint && !error && <span className="text-[10px] text-muted-foreground sm:text-[11px]">{hint}</span>}
+        {hint && !error && <span className="text-[10px] leading-snug text-muted-foreground sm:text-[11px]">{hint}</span>}
       </div>
       {children}
       {error && <div className="mt-1 text-[11px] text-destructive sm:text-xs">{error}</div>}
@@ -89,16 +89,29 @@ function Field({
   );
 }
 
-function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
+function Toggle({
+  on,
+  onChange,
+  label,
+  sub,
+}: {
+  on: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+  sub?: string;
+}) {
   return (
     <button
       type="button"
       onClick={() => onChange(!on)}
-      className="flex w-full items-center justify-between rounded-lg border border-border bg-background px-4 py-3 text-[14px] hover:border-foreground/30 sm:text-sm"
+      className="flex w-full min-h-11 items-center justify-between gap-3 rounded-lg border border-border bg-background px-4 py-3 text-[14px] hover:border-foreground/30 sm:text-sm"
       aria-pressed={on}
     >
-      <span>{label}</span>
-      <span className={["relative h-6 w-11 rounded-full transition", on ? "bg-clay" : "bg-muted"].join(" ")}>
+      <span className="min-w-0 flex-1 text-right leading-snug">
+        {label}
+        {sub && <span className="mt-0.5 block text-[11px] text-muted-foreground">{sub}</span>}
+      </span>
+      <span className={["relative h-6 w-11 shrink-0 rounded-full transition", on ? "bg-clay" : "bg-muted"].join(" ")}>
         <span className={["absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition", on ? "right-0.5" : "right-5"].join(" ")} />
       </span>
     </button>
@@ -112,7 +125,7 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
       onClick={onClick}
       aria-pressed={on}
       className={[
-        "rounded-full border px-3.5 py-1.5 text-[13px] transition sm:px-4 sm:py-2 sm:text-sm",
+        "min-h-10 rounded-full border px-3.5 py-2 text-[13px] transition sm:px-4 sm:py-2 sm:text-sm",
         on ? "border-clay bg-clay text-white" : "border-border bg-background hover:border-clay/60",
       ].join(" ")}
     >
@@ -150,7 +163,7 @@ function Success({ code, id, onReset }: { code: string; id: string; onReset: () 
           <div dir="ltr" className="font-mono text-xl text-foreground sm:text-3xl">{code}</div>
           <button
             onClick={() => { navigator.clipboard.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
-            className="rounded-full border border-border px-3 py-1.5 text-xs hover:border-clay"
+            className="touch-target rounded-full border border-border px-4 py-2.5 text-sm hover:border-clay"
           >
             {copied ? "تم النسخ ✓" : "نسخ"}
           </button>
@@ -454,15 +467,15 @@ function RequestHome() {
         </div>
 
         {/* logo mark — top corner of hero (RTL: visually top-right) */}
-        <div className="pointer-events-none absolute end-5 top-24 z-10 sm:end-6 sm:top-28 lg:end-10">
+        <div className="pointer-events-none absolute end-4 top-[max(5.5rem,calc(env(safe-area-inset-top)+4.5rem))] z-10 sm:end-6 lg:end-10">
           <div className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-white/40 bg-white/95 p-1.5 shadow-lg sm:h-16 sm:w-16">
             <img src={sanadLogoPhoto} alt="شعار حملة سند" className="h-full w-full scale-[1.15] object-contain" />
           </div>
         </div>
 
-        <div className="relative mx-auto max-w-6xl px-5 pb-16 pt-28 sm:px-6 sm:pb-24 sm:pt-32 lg:px-10">
+        <div className="relative mx-auto max-w-6xl px-4 public-nav-offset pb-14 sm:px-6 sm:pb-20 lg:px-10">
           <div className="fade-soft flex flex-col items-center text-center">
-            <div className="font-mono text-[10px] uppercase tracking-[0.55em] text-white/70 sm:text-[11px]">
+            <div className="font-mono text-[10px] uppercase tracking-[0.32em] text-white/70 sm:tracking-[0.55em] sm:text-[11px]">
               S · A · N · A · D — سَنَد
             </div>
 
@@ -478,11 +491,11 @@ function RequestHome() {
               املأ هذا الطلب بصدق وبهدوء. كل حقل تتجاوزه بأمانة يُقرّبك خطوةً من المساعدة. بياناتك محميّة، ولا تُشارَك مع أي طرفٍ ثالث.
             </p>
 
-            <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-              <a href="#sec-personal" className="rounded-full bg-white px-6 py-3 text-[13px] font-medium text-ink transition hover:bg-clay hover:text-white sm:text-sm">
+            <div className="mt-7 flex w-full max-w-md flex-col items-stretch gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center sm:justify-center">
+              <a href="#sec-personal" className="touch-target rounded-full bg-white px-6 py-3 text-center text-[13px] font-medium text-ink transition hover:bg-clay hover:text-white sm:text-sm">
                 ابدأ تعبئة الطلب ↓
               </a>
-              <Link to="/track" className="rounded-full border border-white/30 px-5 py-3 text-[13px] text-white/90 transition hover:bg-white/10 sm:text-sm">
+              <Link to="/track" className="touch-target rounded-full border border-white/30 px-5 py-3 text-center text-[13px] text-white/90 transition hover:bg-white/10 sm:text-sm">
                 تتبّع طلبٍ سابق
               </Link>
             </div>
@@ -494,7 +507,7 @@ function RequestHome() {
         ref={formRef}
         onSubmit={handleSubmit}
         noValidate
-        className="mx-auto max-w-3xl space-y-12 px-5 py-10 sm:space-y-16 sm:px-6 sm:py-16 lg:px-10"
+        className="mx-auto max-w-3xl space-y-12 px-4 py-10 sm:space-y-16 sm:px-6 sm:py-16 lg:px-10"
       >
         {/* 1 — PERSONAL */}
         <section>
@@ -706,7 +719,12 @@ function RequestHome() {
               </div>
               <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
                 <Toggle on={hasPrescription} onChange={setHasPrescription} label="يوجد وصفة طبية" />
-                <Toggle on={critical} onChange={setCritical} label="دواء لحالة حرجة (أنسولين، غسيل كلى، علاج سرطان، مضاد صرع)" />
+                <Toggle
+                  on={critical}
+                  onChange={setCritical}
+                  label="دواء لحالة حرجة"
+                  sub="أنسولين، غسيل كلى، علاج سرطان، مضاد صرع"
+                />
               </div>
               {critical && (
                 <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-[13px] leading-relaxed text-destructive sm:text-sm">
@@ -854,7 +872,13 @@ function RequestHome() {
               <Field label="رفع صورة الوثيقة" hint="JPG, PNG, PDF — حد أقصى ٥ ميغابايت" required error={(show("docFile") && errors.docFile) || docError}>
                 <label className="flex cursor-pointer items-center justify-center rounded-lg border border-dashed border-border bg-background px-4 py-7 text-[13px] text-muted-foreground hover:border-clay sm:py-8 sm:text-sm">
                   <input type="file" accept="image/jpeg,image/png,application/pdf" className="hidden" onChange={(e) => { onFile(e.target.files?.[0] ?? null); touch("docFile")(); }} />
-                  {docFile ? <span className="text-foreground">{docFile.name} — {(docFile.size / 1024).toFixed(0)} KB</span> : "اضغط لاختيار ملف من جهازك"}
+                  {docFile ? (
+                    <span className="max-w-full truncate text-foreground">
+                      {docFile.name} — {(docFile.size / 1024).toFixed(0)} KB
+                    </span>
+                  ) : (
+                    "اضغط لاختيار ملف من جهازك"
+                  )}
                 </label>
               </Field>
               {docFile && !docError && (
@@ -900,8 +924,8 @@ function RequestHome() {
             </div>
           )}
 
-          <label className="mt-5 flex items-start gap-3 rounded-lg border border-border bg-background p-4 text-[13px] sm:text-sm">
-            <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} className="mt-1 h-4 w-4 accent-[var(--color-clay)]" />
+          <label className="mt-5 flex min-h-11 cursor-pointer items-start gap-3 rounded-lg border border-border bg-background p-4 text-[13px] sm:text-sm">
+            <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--color-clay)]" />
             <span>أؤكد أن جميع المعلومات المقدمة صحيحة ودقيقة، وأن طلبي مشروع وحقيقي.</span>
           </label>
 
@@ -914,7 +938,7 @@ function RequestHome() {
           <button
             type="submit"
             disabled={!confirmed || submitting || submitBlocked}
-            className="mt-5 w-full rounded-full bg-primary px-6 py-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-5 min-h-11 w-full rounded-full bg-primary px-6 py-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitting ? "جارٍ الإرسال..." : "تقديم الطلب"}
           </button>

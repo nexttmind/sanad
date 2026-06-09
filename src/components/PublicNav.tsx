@@ -61,8 +61,8 @@ export function PublicNav({
         : "text-foreground";
 
   return (
-    <header className={["absolute inset-x-0 top-0 z-50", headerText].join(" ")}>
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-6 sm:py-6 lg:px-10">
+    <header className={["absolute inset-x-0 top-0 z-50 safe-top", headerText].join(" ")}>
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6 sm:py-5 lg:px-10">
         <Link to="/" className="flex items-center gap-3" onClick={() => setOpen(false)}>
           <span
             className={[
@@ -108,7 +108,7 @@ export function PublicNav({
         {/* Animated hamburger */}
         <button
           className={[
-            "relative z-50 grid h-10 w-10 place-items-center md:hidden",
+            "relative z-50 grid h-11 w-11 touch-target place-items-center md:hidden",
             mobileMenuBtn,
           ].join(" ")}
           onClick={() => setOpen((v) => !v)}
@@ -164,7 +164,7 @@ export function PublicNav({
           ].join(" ")}
           style={{ transitionDuration: "350ms" }}
         >
-          <div className="mx-auto max-w-7xl px-5 pt-20 pb-8 sm:px-6">
+          <div className="mx-auto max-w-7xl px-4 pt-[max(5.5rem,calc(env(safe-area-inset-top)+4.5rem))] pb-8 sm:px-6">
             <div className="font-mono text-[10px] uppercase tracking-[0.42em] text-clay">القائمة</div>
             <nav className="mt-4 flex flex-col">
               {links.map((l, i) => (

@@ -94,12 +94,12 @@ export function DonationSubmitForm({ intent, onMethodKeyChange }: Props) {
           disabled={anonymous}
           onChange={(e) => setName(e.target.value)}
           placeholder="اسمك (أو اتركه فارغاً إذا مجهول)"
-          className="rounded-lg border border-border bg-background px-3 py-2.5 text-sm disabled:opacity-50"
+          className="min-h-11 rounded-lg border border-border bg-background px-3 py-3 text-sm disabled:opacity-50"
         />
         <select
           value={intent.methodKey}
           onChange={(e) => onMethodKeyChange(e.target.value)}
-          className="rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+          className="min-h-11 rounded-lg border border-border bg-background px-3 py-3 text-sm"
         >
           <option value="whish">Whish Money</option>
           <option value="bank">تحويل مصرفي</option>
@@ -111,26 +111,33 @@ export function DonationSubmitForm({ intent, onMethodKeyChange }: Props) {
           onChange={(e) => setMessage(e.target.value)}
           placeholder="رسالة أو ملاحظة (اختياري — تظهر في جدار التعهّدات)"
           rows={2}
-          className="sm:col-span-2 rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+          className="sm:col-span-2 rounded-lg border border-border bg-background px-3 py-3 text-sm"
         />
-        <label className="sm:col-span-2 flex items-center gap-2 text-sm">
+        <label className="sm:col-span-2 flex min-h-11 cursor-pointer items-center gap-3 text-sm">
           <input
             type="checkbox"
             checked={anonymous}
             onChange={(e) => setAnonymous(e.target.checked)}
-            className="h-4 w-4 accent-[var(--color-clay)]"
+            className="h-5 w-5 shrink-0 accent-[var(--color-clay)]"
           />
           تبرّع مجهول
         </label>
         <div className="sm:col-span-2">
           <div className="text-[11px] text-muted-foreground">إرفاق إثبات الدفع (اختياري — JPG/PNG/PDF)</div>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/jpeg,image/png,application/pdf"
-            onChange={(e) => setProof(e.target.files?.[0] ?? null)}
-            className="mt-1 w-full text-sm"
-          />
+          <label className="mt-2 flex min-h-11 cursor-pointer items-center justify-center rounded-lg border border-dashed border-border bg-background px-4 py-3 text-sm text-muted-foreground hover:border-clay">
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/jpeg,image/png,application/pdf"
+              onChange={(e) => setProof(e.target.files?.[0] ?? null)}
+              className="hidden"
+            />
+            {proof ? (
+              <span className="max-w-full truncate text-foreground">{proof.name}</span>
+            ) : (
+              "اضغط لاختيار ملف"
+            )}
+          </label>
         </div>
       </div>
 
@@ -145,7 +152,7 @@ export function DonationSubmitForm({ intent, onMethodKeyChange }: Props) {
       <button
         type="submit"
         disabled={busy}
-        className="mt-4 w-full rounded-full bg-foreground py-3 text-sm font-medium text-background hover:bg-clay disabled:opacity-50"
+        className="mt-4 min-h-11 w-full rounded-full bg-foreground py-3 text-sm font-medium text-background hover:bg-clay disabled:opacity-50"
       >
         {busy ? "جارٍ التسجيل..." : "تأكيد التبرّع"}
       </button>

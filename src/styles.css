@@ -146,6 +146,7 @@
     overflow-x: clip;
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
   }
   h1, h2, h3, .display {
     font-family: var(--font-display);
@@ -262,5 +263,25 @@
     color: var(--color-foreground);
     min-width: 0;
     word-break: break-word;
+  }
+
+  /* Fixed nav clearance + notch-safe top padding on public pages */
+  .public-nav-offset {
+    padding-top: max(7rem, calc(env(safe-area-inset-top) + 5rem));
+  }
+  @media (min-width: 640px) {
+    .public-nav-offset {
+      padding-top: max(8rem, calc(env(safe-area-inset-top) + 5.5rem));
+    }
+  }
+
+  .safe-top {
+    padding-top: max(0.75rem, env(safe-area-inset-top));
+  }
+
+  /* Minimum 44px touch target for primary actions */
+  .touch-target {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
   }
 }

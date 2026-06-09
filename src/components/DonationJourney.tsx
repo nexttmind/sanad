@@ -52,7 +52,7 @@ function StageCarousel({ stage }: { stage: DonationJourneyStage }) {
       </div>
 
       {stage.photos.length > 1 && (
-        <div className="mt-3 flex items-center justify-center gap-1.5">
+        <div className="mt-3 flex items-center justify-center gap-2">
           {stage.photos.map((photo, i) => (
             <button
               key={photo.src}
@@ -63,11 +63,15 @@ function StageCarousel({ stage }: { stage: DonationJourneyStage }) {
                 if (!el) return;
                 el.scrollTo({ left: i * el.clientWidth, behavior: "smooth" });
               }}
-              className={[
-                "h-1.5 rounded-full transition-all duration-300",
-                i === activeIdx ? "w-6 bg-clay" : "w-1.5 bg-white/25",
-              ].join(" ")}
-            />
+              className="touch-target grid place-items-center p-2"
+            >
+              <span
+                className={[
+                  "block h-2 rounded-full transition-all duration-300",
+                  i === activeIdx ? "w-8 bg-clay" : "w-2 bg-white/25",
+                ].join(" ")}
+              />
+            </button>
           ))}
         </div>
       )}
@@ -165,7 +169,7 @@ export function DonationJourney() {
       <div className="pointer-events-none absolute -right-24 bottom-0 h-80 w-80 rounded-full bg-white/5 blur-3xl" />
       <div className="absolute inset-0 grain opacity-40" />
 
-      <div className="relative mx-auto max-w-6xl px-5 py-14 sm:px-6 sm:py-20 lg:px-10">
+      <div className="relative mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20 lg:px-10">
         <div className="max-w-2xl">
           <Kicker>مسار تبرّعك</Kicker>
           <h2 className="mt-3 font-display text-3xl leading-[1.12] sm:text-4xl md:text-5xl">
@@ -177,14 +181,14 @@ export function DonationJourney() {
         </div>
 
         {/* Mobile: sticky step pills */}
-        <div className="sticky top-[4.5rem] z-20 -mx-5 mt-8 border-b border-white/10 bg-ink/90 px-5 py-3 backdrop-blur-md sm:-mx-6 sm:px-6 lg:hidden">
-          <div className="flex gap-2 overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="sticky top-[max(4rem,calc(env(safe-area-inset-top)+3.5rem))] z-20 -mx-4 mt-8 border-b border-white/10 bg-ink/90 px-4 py-3 backdrop-blur-md sm:-mx-6 sm:px-6 lg:hidden">
+          <div className="flex gap-2 overflow-x-auto overscroll-x-contain pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {donationJourneyStages.map((stage, i) => (
               <a
                 key={stage.id}
                 href={`#journey-${stage.id}`}
                 className={[
-                  "shrink-0 rounded-full border px-3 py-1.5 text-[11px] transition",
+                  "shrink-0 rounded-full border px-3.5 py-2 text-[11px] transition",
                   i === activeStage
                     ? "border-clay bg-clay text-white"
                     : "border-white/15 text-white/70 hover:border-white/30",
