@@ -14,9 +14,15 @@ import { useAdminFilterTags, useAdminStaff, adminQueryKeys } from "@/lib/admin-q
 import { useAdminQueryRealtime } from "@/lib/use-admin-query-realtime";
 import {
   invalidateSubmissionsListQueries,
+  useDailyBatchSubmissions,
   useSubmissionsList,
   useSubmissionsListDerived,
 } from "@/lib/use-submissions-list-query";
+import {
+  batchRangeLabel,
+  beirutTodayIso,
+  totalBatches,
+} from "@/lib/daily-batch";
 import { matchQuickFilter, quickFilterPresets, type QuickFilterId } from "@/lib/request-quick-filters";
 import type { Database } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
@@ -165,6 +171,9 @@ function RequestsList() {
   const { data: allTags = [] } = useAdminFilterTags();
   const { data: staff = [] } = useAdminStaff();
   const [pageSize, setPageSize] = useState<PageSize>(() => loadSavedPageSize());
+  const [dailyBatchEnabled, setDailyBatchEnabled] = useState(true);
+  const [batchDate, setBatchDate] = useState(() => beirutTodayIso());
+  const [batchNumber, setBatchNumber] = useState(1);
 
   const [assignFilter, setAssignFilter] = useState<"all" | "unassigned" | string>("all");
   const [trustMin, setTrustMin] = useState("");
@@ -249,19 +258,43 @@ function RequestsList() {
 
   const staffNames = useMemo(() => staffMapById(staff), [staff]);
 
+  const batchQuery = useDailyBatchSubmissions(batchDate, batchNumber);
   const listQuery = useSubmissionsList(filters, sort, pageSize);
-  const { rows, totalCount, filesByRequest } = useSubmissionsListDerived(listQuery);
-  const loading = listQuery.isLoading;
-  const loadingMore = listQuery.isFetchingNextPage;
-  const loadError = listQuery.error instanceof Error ? listQuery.error.message : listQuery.error ? "تعذّر تحميل الطلبات" : null;
-  const hasNextPage = listQuery.hasNextPage;
+  const { rows: listRows, totalCount: listTotalCount, filesByRequest: listFilesByRequest } =
+    useSubmissionsListDerived(listQuery);
 
-  useAdminQueryRealtime("admin-requests", "aid_requests", [[...adminQueryKeys.all, "submissions"]]);
+  const rows = dailyBatchEnabled ? (batchQuery.data?.rows ?? []) : listRows;
+  const totalCount = dailyBatchEnabled ? (batchQuery.data?.totalCount ?? 0) : listTotalCount;
+  const filesByRequest = dailyBatchEnabled ? (batchQuery.data?.filesByRequest ?? {}) : listFilesByRequest;
+  const loading = dailyBatchEnabled ? batchQuery.isLoading : listQuery.isLoading;
+  const loadingMore = dailyBatchEnabled ? false : listQuery.isFetchingNextPage;
+  const loadError = dailyBatchEnabled
+    ? batchQuery.error instanceof Error
+      ? batchQuery.error.message
+      : batchQuery.error
+        ? "تعذّر تحميل الطلبات"
+        : null
+    : listQuery.error instanceof Error
+      ? listQuery.error.message
+      : listQuery.error
+        ? "تعذّر تحميل الطلبات"
+        : null;
+  const hasNextPage = dailyBatchEnabled ? false : listQuery.hasNextPage;
+  const batchCount = totalBatches(totalCount);
+
+  useAdminQueryRealtime("admin-requests", "aid_requests", [
+    [...adminQueryKeys.all, "submissions"],
+    [...adminQueryKeys.all, "daily-batch"],
+  ]);
+
+  useEffect(() => {
+    setBatchNumber(1);
+  }, [batchDate]);
 
   useEffect(() => {
     setSelectedIds(new Set());
     setBulkMessage(null);
-  }, [filters, sort, pageSize]);
+  }, [filters, sort, pageSize, dailyBatchEnabled, batchDate, batchNumber]);
 
   const activeQuickFilter = useMemo(() => {
     for (const preset of quickFilterPresets(user?.id)) {
@@ -409,6 +442,7 @@ function RequestsList() {
   };
 
   const applySavedView = (view: SavedView) => {
+    setDailyBatchEnabled(false);
     setQ(view.filters.search ?? "");
     setStatus((view.filters.status as DbStatus | undefined) ?? "all");
     setRisk((view.filters.risk_level as typeof risk) ?? "all");
@@ -446,6 +480,71 @@ function RequestsList() {
 
   return (
     <div className="space-y-6">
+      <div className="rounded-xl border border-clay/30 bg-clay/5 p-4 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold">دفعة اليوم — ٥٠ طلباً (FIFO)</div>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              اختر يوماً بتوقيت بيروت — تُعرض الطلبات حسب رقم الدور (#1–50، ثم #51–80…). الاستقبال العام يبقى مفتوحاً.
+            </p>
+          </div>
+          <label className="flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              checked={dailyBatchEnabled}
+              onChange={(e) => setDailyBatchEnabled(e.target.checked)}
+              className="h-4 w-4"
+            />
+            وضع الدفعة اليومية
+          </label>
+        </div>
+        {dailyBatchEnabled && (
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="space-y-1 text-xs">
+              <span className="text-muted-foreground">اليوم (Asia/Beirut)</span>
+              <input
+                type="date"
+                value={batchDate}
+                onChange={(e) => setBatchDate(e.target.value)}
+                className="rounded-md border border-border bg-background px-3 py-2 text-sm"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                setBatchDate(beirutTodayIso());
+                setBatchNumber(1);
+              }}
+              className="rounded-md border border-border px-3 py-2 text-xs hover:border-clay"
+            >
+              اليوم
+            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={batchNumber <= 1 || loading}
+                onClick={() => setBatchNumber((n) => Math.max(1, n - 1))}
+                className="rounded-md border border-border px-3 py-2 text-xs hover:border-clay disabled:opacity-40"
+              >
+                ← الدفعة السابقة
+              </button>
+              <span className="font-mono text-xs text-muted-foreground">
+                دفعة {batchNumber.toLocaleString("ar-EG")} / {batchCount.toLocaleString("ar-EG")} ·{" "}
+                {batchRangeLabel(batchNumber, totalCount)} من {totalCount.toLocaleString("ar-EG")}
+              </span>
+              <button
+                type="button"
+                disabled={batchNumber >= batchCount || loading}
+                onClick={() => setBatchNumber((n) => n + 1)}
+                className="rounded-md border border-border px-3 py-2 text-xs hover:border-clay disabled:opacity-40"
+              >
+                الدفعة التالية →
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
       <div className="rounded-xl border border-border bg-card p-4">
         <div className="grid gap-3 md:grid-cols-[2fr_1fr_1fr_1fr_auto]">
           <input
@@ -1130,7 +1229,7 @@ function RequestsList() {
             );
           })}
         </AdminMobileList>
-        {hasNextPage && (
+        {hasNextPage && !dailyBatchEnabled && (
           <div className="border-t border-border p-4 text-center">
             <button
               type="button"

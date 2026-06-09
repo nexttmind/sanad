@@ -8,9 +8,7 @@ import { insertSubmissionReference } from "@/lib/submission-reference";
 import { submitAidRequest } from "@/lib/submit-aid-request";
 import { uploadIdDocument } from "@/lib/upload-id-doc";
 import { getDeviceFingerprint } from "@/lib/device-fingerprint";
-import { useDonationImpactStats, type DonationImpactStats } from "@/lib/donations";
 import { aidRequestHeroPhoto, sanadLogoPhoto } from "@/lib/donate-photos";
-import { getSubmissionStatus } from "@/lib/submission-status";
 import { precheckAidSubmission, type PrecheckReason } from "@/lib/precheck-aid-submission";
 import { validateAidRequestForm } from "@/lib/aid-request-validation";
 import {
@@ -18,7 +16,6 @@ import {
   documentTypeFromLabel,
   isLebanesePhone,
 } from "@/lib/phone-normalize";
-import { CapReachedMessage } from "@/components/CapReachedMessage";
 import { DuplicateSubmissionAlert } from "@/components/DuplicateSubmissionAlert";
 
 export const Route = createFileRoute("/")({
@@ -45,15 +42,6 @@ const DIAPER_SIZES = ["NB", "١", "٢", "٣", "٤", "٥", "٦"];
 const MILK_BRANDS = ["Aptamil", "NAN", "Similac", "Enfamil", "أي ماركة متوفرة"];
 const MILK_STAGES = ["Stage 1 (٠–٦ أشهر)", "Stage 2 (٦–١٢ شهر)", "Stage 3 (١٢–٢٤ شهر)"];
 const FIN_PURPOSE = ["إيجار مؤقت", "مصاريف طبية", "مستلزمات أساسية", "مصاريف تعليم", "أخرى"];
-
-const DEFAULT_STATS: DonationImpactStats = {
-  week_total_usd: 0,
-  families_helped: 0,
-  last_donation_minutes: null,
-  requests_received: 0,
-  verify_rate: 0,
-  avg_response_minutes: null,
-};
 
 /* ----------------------------- validation helpers ----------------------------- */
 function monthsAgo(d: string) {
@@ -138,29 +126,6 @@ function Warn({ children }: { children: React.ReactNode }) {
     <div className="mt-3 rounded-md border border-warning/40 bg-warning/10 px-3.5 py-2.5 text-[12px] leading-relaxed text-warning sm:text-xs">
       {children}
     </div>
-  );
-}
-
-/* ----------------------------- stat counter ----------------------------- */
-function Counter({ to, suffix }: { to: number; suffix: string }) {
-  const [n, setN] = useState(0);
-  useEffect(() => {
-    const start = performance.now();
-    const dur = 1200;
-    let raf = 0;
-    const tick = (t: number) => {
-      const p = Math.min(1, (t - start) / dur);
-      const eased = 1 - Math.pow(1 - p, 3);
-      setN(Math.round(to * eased));
-      if (p < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [to]);
-  return (
-    <span className="font-display text-2xl sm:text-3xl md:text-4xl">
-      {n.toLocaleString("ar-EG")}{suffix}
-    </span>
   );
 }
 
@@ -255,15 +220,12 @@ function RequestHome() {
   const [docFile, setDocFile] = useState<File | null>(null); const [docPreview, setDocPreview] = useState<string | null>(null);
   const [docError, setDocError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
-  const [acceptingSubmissions, setAcceptingSubmissions] = useState<boolean | null>(null);
-  const [capMessage, setCapMessage] = useState<string | null>(null);
   const [precheckBlocked, setPrecheckBlocked] = useState<{
     reason: Extract<PrecheckReason, "phone_already_submitted" | "id_already_submitted">;
     message: string;
     reference_code?: string | null;
   } | null>(null);
   const [submitBlocked, setSubmitBlocked] = useState(false);
-  const { data: publicStats = DEFAULT_STATS } = useDonationImpactStats();
 
   // -------- touched / submit-attempted
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -275,20 +237,6 @@ function RequestHome() {
   const toggleNeed = (n: string) => setNeeds((arr) => arr.includes(n) ? arr.filter((x) => x !== n) : [...arr, n]);
   const hasNeed = (n: string) => needs.includes(n);
   const documentType = documentTypeFromLabel(docType);
-
-  useEffect(() => {
-    let cancelled = false;
-    void getSubmissionStatus().then((result) => {
-      if (cancelled) return;
-      if (result.ok) {
-        setAcceptingSubmissions(result.status.accepting);
-        setCapMessage(result.status.message_ar ?? null);
-      } else {
-        setAcceptingSubmissions(true);
-      }
-    });
-    return () => { cancelled = true; };
-  }, []);
 
   useEffect(() => {
     if (!phone.trim() || !isLebanesePhone(phone)) {
@@ -329,13 +277,6 @@ function RequestHome() {
 
     return () => window.clearTimeout(timer);
   }, [phone, docNumber, documentType, docType]);
-
-  const heroStats = [
-    { num: publicStats.requests_received, suffix: "", label: "طلب مستلم" },
-    { num: publicStats.families_helped, suffix: "", label: "عائلة وصلتها مساعدة" },
-    { num: publicStats.verify_rate, suffix: "%", label: "نسبة التحقق" },
-    { num: publicStats.avg_response_minutes ?? 0, suffix: " س", label: "متوسّط زمن الاستجابة" },
-  ];
 
   // -------- file handling
   const onFile = (f: File | null) => {
@@ -496,18 +437,6 @@ function RequestHome() {
     );
   }
 
-  if (acceptingSubmissions === false) {
-    return (
-      <main className="min-h-screen bg-background">
-        <PublicNav />
-        <div className="pt-24">
-          <CapReachedMessage message={capMessage} />
-        </div>
-        <PublicFooter />
-      </main>
-    );
-  }
-
   return (
     <main className="min-h-screen bg-background">
       <PublicNav tone="dark" greenMobileMenu />
@@ -524,20 +453,16 @@ function RequestHome() {
           <div className="absolute inset-0 grain" />
         </div>
 
+        {/* logo mark — top corner of hero (RTL: visually top-right) */}
+        <div className="pointer-events-none absolute end-5 top-24 z-10 sm:end-6 sm:top-28 lg:end-10">
+          <div className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-white/40 bg-white/95 p-1.5 shadow-lg sm:h-16 sm:w-16">
+            <img src={sanadLogoPhoto} alt="شعار حملة سند" className="h-full w-full scale-[1.15] object-contain" />
+          </div>
+        </div>
+
         <div className="relative mx-auto max-w-6xl px-5 pb-16 pt-28 sm:px-6 sm:pb-24 sm:pt-32 lg:px-10">
           <div className="fade-soft flex flex-col items-center text-center">
-            {/* Logo mark — full SANAD logo scaled to fit the circle */}
-            <div className="relative">
-              <div className="absolute inset-0 -m-3 rounded-full bg-primary/25 blur-2xl" />
-              <div className="relative flex h-[5.25rem] w-[5.25rem] items-center justify-center overflow-hidden rounded-full border border-white/40 bg-white/95 p-1.5 shadow-lg sm:h-24 sm:w-24 sm:p-2">
-                <img
-                  src={sanadLogoPhoto}
-                  alt="شعار حملة سند"
-                  className="h-full w-full scale-[1.18] object-contain"
-                />
-              </div>
-            </div>
-            <div className="mt-4 font-mono text-[10px] uppercase tracking-[0.55em] text-white/70 sm:text-[11px]">
+            <div className="font-mono text-[10px] uppercase tracking-[0.55em] text-white/70 sm:text-[11px]">
               S · A · N · A · D — سَنَد
             </div>
 
@@ -560,16 +485,6 @@ function RequestHome() {
               <Link to="/track" className="rounded-full border border-white/30 px-5 py-3 text-[13px] text-white/90 transition hover:bg-white/10 sm:text-sm">
                 تتبّع طلبٍ سابق
               </Link>
-            </div>
-
-            <div className="mt-10 grid w-full max-w-3xl grid-cols-2 gap-x-4 gap-y-6 border-t border-white/15 pt-8 sm:grid-cols-4 sm:gap-x-6">
-              {heroStats.map((s) => (
-                <div key={s.label} className="text-center">
-                  <div className="text-white"><Counter to={s.num} suffix={s.suffix} /></div>
-                  <div className="mx-auto mt-1.5 h-px w-6 bg-clay" />
-                  <div className="mt-1.5 text-[10px] uppercase tracking-wider text-white/65 sm:text-[11px]">{s.label}</div>
-                </div>
-              ))}
             </div>
           </div>
         </div>

@@ -1,7 +1,8 @@
-import { useInfiniteQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { adminQueryKeys, adminQueryOptions } from "@/lib/admin-query";
+import { batchOffset, DAILY_BATCH_SIZE } from "@/lib/daily-batch";
 import type { AidRowExtended, FileRowExtended } from "@/lib/request-detail-types";
 import {
   buildFiltersJson,
@@ -36,6 +37,7 @@ export function submissionsListQueryKey(
 
 export function invalidateSubmissionsListQueries(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: [...adminQueryKeys.all, "submissions"] });
+  void queryClient.invalidateQueries({ queryKey: [...adminQueryKeys.all, "daily-batch"] });
 }
 
 async function fetchFilesForRequests(requestIds: string[]): Promise<Record<string, FileRowExtended[]>> {
@@ -51,6 +53,31 @@ async function fetchFilesForRequests(requestIds: string[]): Promise<Record<strin
     byRequest[f.request_id].push(f);
   }
   return byRequest;
+}
+
+export function useDailyBatchSubmissions(batchDate: string, batchNumber: number) {
+  const sort: SubmissionSort = { field: "queue_number", direction: "asc" };
+  const filters: SubmissionFilters = { beirut_date: batchDate };
+
+  return useQuery({
+    queryKey: [...adminQueryKeys.all, "daily-batch", batchDate, batchNumber],
+    queryFn: async (): Promise<SubmissionsListPage> => {
+      const result = await listSubmissions(
+        filters,
+        sort,
+        { offset: batchOffset(batchNumber) },
+        DAILY_BATCH_SIZE,
+      );
+      const filesByRequest = await fetchFilesForRequests(result.rows.map((r) => r.id));
+      return {
+        rows: result.rows,
+        totalCount: result.totalCount,
+        nextCursor: result.nextCursor,
+        filesByRequest,
+      };
+    },
+    ...adminQueryOptions,
+  });
 }
 
 export function useSubmissionsList(

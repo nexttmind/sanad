@@ -21,6 +21,8 @@ export type SubmissionFilters = {
   needs?: string[];
   created_from?: string;
   created_to?: string;
+  /** YYYY-MM-DD in Asia/Beirut — takes precedence over created_from/to */
+  beirut_date?: string;
   assigned_to?: string;
   unassigned_only?: boolean;
   trust_min?: number;
@@ -134,6 +136,7 @@ export function buildFiltersJson(filters: SubmissionFilters): Json {
   if (filters.governorate && filters.governorate !== "all") out.governorate = filters.governorate;
   if (filters.created_from) out.created_from = filters.created_from;
   if (filters.created_to) out.created_to = filters.created_to;
+  if (filters.beirut_date) out.beirut_date = filters.beirut_date;
   if (filters.tag_ids?.length) out.tag_ids = filters.tag_ids;
   if (filters.needs?.length) out.needs = filters.needs;
   if (filters.assigned_to) out.assigned_to = filters.assigned_to;

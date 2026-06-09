@@ -8,14 +8,19 @@ import {
   formatBeneficiaryLabel,
   formatLedgerDate,
   ledgerItemLabel,
-  useAdoptableFamilies,
-  useDonationImpactStats,
   usePublicLedger,
-  type AdoptableFamily,
-  type DonationImpactStats,
   type LedgerRow,
   type PledgeMessage,
 } from "@/lib/donations";
+import {
+  ALT_DONATION_DISPLAY,
+  ALT_DONATION_PHONE,
+  WHISH_DONATION_DISPLAY,
+  WHISH_DONATION_PHONE,
+  telHref,
+  whatsappHref,
+} from "@/lib/donation-contacts";
+import { sanadLogoPhoto } from "@/lib/donate-photos";
 import hero1 from "@/assets/hero-1.jpg";
 import hero3 from "@/assets/hero-3.jpg";
 import hero4 from "@/assets/hero-4.jpg";
@@ -25,7 +30,7 @@ export const Route = createFileRoute("/donate")({
   head: () => ({
     meta: [
       { title: "تبرّع — سند" },
-      { name: "description", content: "تبرّعك ليس رقماً. إنه وجبة، حفاضة، دواء. ادعم عائلة محددة، وتابع أين ذهبت كل ليرة." },
+      { name: "description", content: "تبرّعك ليس رقماً. إنه وجبة، حفاضة، دواء. تبرّع عبر Whish أو تواصل معنا للقنوات الأخرى." },
       { property: "og:title", content: "تبرّع — سند" },
       { property: "og:image", content: hero1 },
     ],
@@ -33,49 +38,71 @@ export const Route = createFileRoute("/donate")({
   component: DonatePage,
 });
 
-const DEFAULT_DONATE_STATS: DonationImpactStats = {
-  week_total_usd: 0,
-  families_helped: 0,
-  last_donation_minutes: null,
-  requests_received: 0,
-  verify_rate: 0,
-  avg_response_minutes: null,
-};
-
 /* ----------------------------- atoms ----------------------------- */
-function Counter({ to, suffix = "" }: { to: number; suffix?: string }) {
-  const [n, setN] = useState(0);
-  useEffect(() => {
-    const s = performance.now(); const d = 1400; let raf = 0;
-    const tick = (t: number) => {
-      const p = Math.min(1, (t - s) / d);
-      setN(Math.round(to * (1 - Math.pow(1 - p, 3))));
-      if (p < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [to]);
-  return <span>{n.toLocaleString("ar-EG")}{suffix}</span>;
-}
-
 function Kicker({ children }: { children: React.ReactNode }) {
   return <p className="font-mono text-[10px] uppercase tracking-[0.42em] text-clay sm:text-[11px]">{children}</p>;
 }
 
-function CopyRow({ label, value }: { label: string; value: string }) {
+function CopyRow({ label, value, href }: { label: string; value: string; href?: string }) {
   const [c, setC] = useState(false);
   return (
     <div className="flex items-center justify-between gap-3 border-b border-border/60 py-2.5 last:border-0">
       <div className="min-w-0">
         <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-        <div dir="ltr" className="mt-0.5 truncate font-mono text-[13px] text-foreground">{value}</div>
+        {href ? (
+          <a
+            href={href}
+            dir="ltr"
+            className="mt-0.5 block truncate font-mono text-[13px] text-clay hover:underline"
+          >
+            {value}
+          </a>
+        ) : (
+          <div dir="ltr" className="mt-0.5 truncate font-mono text-[13px] text-foreground">{value}</div>
+        )}
       </div>
       <button
+        type="button"
         onClick={() => { navigator.clipboard.writeText(value); setC(true); setTimeout(() => setC(false), 1200); }}
         className="shrink-0 rounded-full border border-border bg-background px-2.5 py-1 text-[11px] hover:border-clay hover:text-clay"
       >
         {c ? "نُسخ ✓" : "نسخ"}
       </button>
+    </div>
+  );
+}
+
+function OneClickContact({
+  label,
+  phone,
+  display,
+}: {
+  label: string;
+  phone: string;
+  display: string;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-background p-4">
+      <div className="text-[11px] text-muted-foreground">{label}</div>
+      <a href={telHref(phone)} dir="ltr" className="mt-1 block font-mono text-lg text-clay hover:underline">
+        {display}
+      </a>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <a
+          href={telHref(phone)}
+          className="inline-flex flex-1 items-center justify-center rounded-full bg-foreground px-4 py-2.5 text-[13px] font-medium text-background transition hover:bg-clay"
+        >
+          اتصال مباشر
+        </a>
+        <a
+          href={whatsappHref(phone)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex flex-1 items-center justify-center rounded-full border border-border px-4 py-2.5 text-[13px] font-medium transition hover:border-clay hover:text-clay"
+        >
+          واتساب
+        </a>
+      </div>
     </div>
   );
 }
@@ -87,7 +114,7 @@ const heroFrames = [
   { src: hero4, kb: "kb-4" },
 ];
 
-function Hero({ stats }: { stats: DonationImpactStats }) {
+function Hero() {
   const [i, setI] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setI((p) => (p + 1) % heroFrames.length), 6000);
@@ -112,11 +139,18 @@ function Hero({ stats }: { stats: DonationImpactStats }) {
         <div className="absolute inset-0 grain" />
       </div>
 
+      {/* logo mark — top corner of hero (RTL: visually top-right) */}
+      <div className="pointer-events-none absolute end-5 top-24 z-10 sm:end-6 sm:top-28 lg:end-10">
+        <div className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-white/40 bg-white/95 p-1.5 shadow-lg sm:h-16 sm:w-16">
+          <img src={sanadLogoPhoto} alt="شعار سند" className="h-full w-full scale-[1.15] object-contain" />
+        </div>
+      </div>
+
       {/* content */}
       <div className="relative mx-auto flex min-h-[88vh] max-w-6xl flex-col px-5 pb-12 pt-28 sm:px-6 sm:pt-32 lg:px-10">
         <div className="fade-soft flex items-center gap-2 text-[10px] uppercase tracking-[0.32em] text-white/70">
           <span className="live-dot h-1.5 w-1.5 rounded-full bg-clay" />
-          توزيع جارٍ — قضاء صور، الآن
+          تبرّع عبر Whish — أو تواصل للقنوات الأخرى
         </div>
 
         <div className="mt-auto max-w-3xl">
@@ -126,37 +160,20 @@ function Hero({ stats }: { stats: DonationImpactStats }) {
             <span className="text-clay">إنّه موقف.</span>
           </div>
           <p className="rise mt-5 max-w-xl text-[14px] leading-relaxed text-white/85 sm:text-base">
-            في سند، لا نطلب منك أن تمنح. نطلب منك أن تقف. أن تختار عائلة، وتعرف اسمها، وتعرف ماذا اشترت لها ليرتك. هذه ليست صدقة عابرة — هذا التزام بشهادة.
+            في سند، لا نطلب منك أن تمنح. نطلب منك أن تقف. تبرّعك يُوجَّه مباشرةً إلى العائلات المعتمدة — بلا وسطاء.
           </p>
 
           <div className="rise mt-7 flex flex-wrap items-center gap-3">
-            <a href="#allocate" className="rounded-full bg-clay px-6 py-3 text-[13px] font-medium text-white transition hover:bg-clay/90 sm:text-sm">
-              اختر مبلغك ↓
+            <a href="#methods" className="rounded-full bg-clay px-6 py-3 text-[13px] font-medium text-white transition hover:bg-clay/90 sm:text-sm">
+              Whish — تبرّع الآن ↓
             </a>
-            <a href="#families" className="rounded-full border border-white/30 px-5 py-3 text-[13px] text-white/90 transition hover:bg-white/10 sm:text-sm">
-              تبنَّ عائلة بالاسم
+            <a
+              href={telHref(ALT_DONATION_PHONE)}
+              className="rounded-full border border-white/30 px-5 py-3 text-[13px] text-white/90 transition hover:bg-white/10 sm:text-sm"
+            >
+              قناة أخرى؟ اتصل بنا
             </a>
           </div>
-        </div>
-
-        {/* live ticker bar */}
-        <div className="mt-10 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-white/15 bg-white/5 backdrop-blur-sm min-[400px]:grid-cols-3">
-          {[
-            { k: "الأسبوع الحالي", v: Math.round(stats.week_total_usd), suf: "$" },
-            { k: "عائلات تمّ دعمها", v: stats.families_helped, suf: "" },
-            {
-              k: "آخر تبرّع منذ",
-              v: stats.last_donation_minutes ?? 0,
-              suf: stats.last_donation_minutes != null ? " د" : "",
-            },
-          ].map((s) => (
-            <div key={s.k} className="bg-ink/40 p-3 text-center sm:p-5">
-              <div className="font-display text-xl text-white sm:text-3xl">
-                <Counter to={s.v} suffix={s.suf} />
-              </div>
-              <div className="mt-1 text-[9px] uppercase tracking-wider text-white/60 sm:text-[11px]">{s.k}</div>
-            </div>
-          ))}
         </div>
       </div>
     </section>
@@ -167,7 +184,7 @@ function Hero({ stats }: { stats: DonationImpactStats }) {
 function Promise() {
   const items = [
     { n: "٠١", t: "بلا وسطاء.", d: "تبرّعك ينتقل من حسابك إلى يد المسؤول الميداني مباشرةً، بلا سلسلة وكلاء." },
-    { n: "٠٢", t: "بالاسم.", d: "تختار عائلة محددة من قائمة الطلبات المعتمدة. تعرف منطقتها، حجمها، حاجتها." },
+    { n: "٠٢", t: "بالشفافية.", d: "نوضّح أين تُوجَّه التبرّعات — صندوق عام أو حالات معتمدة — دون وسطاء." },
     { n: "٠٣", t: "بالإيصال.", d: "تستلم تأكيداً بصورة فاتورة الشراء وتوقيع العائلة المستفيدة برمز PIN." },
   ];
   return (
@@ -193,11 +210,11 @@ function Promise() {
 
 /* ----------------------------- 2. ALLOCATE — interactive ----------------------------- */
 const allocations = [
-  { amt: 10, label: "حليب رضيع لأسبوع", recipient: "SND-19203 — كفررمان", icon: "🍼" },
-  { amt: 25, label: "سلة طعام أساسية ٤ أيام", recipient: "SND-88471 — حاصبيا", icon: "🥖" },
-  { amt: 50, label: "دواء قلب شهري", recipient: "SND-19203 — مرجعيون", icon: "💊" },
-  { amt: 100, label: "إيجار مأوى لأسبوع", recipient: "عائلة من ٦ — صور", icon: "🏚" },
-  { amt: 250, label: "دعم شامل عائلة شهرياً", recipient: "تحديد عشوائي — أولوية قصوى", icon: "✦" },
+  { amt: 10, label: "حليب رضيع لأسبوع", recipient: "مستلزمات رضّع — أولوية", icon: "🍼" },
+  { amt: 25, label: "سلة طعام أساسية ٤ أيام", recipient: "سلة غذائية — عائلة متوسطة", icon: "🥖" },
+  { amt: 50, label: "دواء شهري", recipient: "أدوية أساسية — حالة طبية", icon: "💊" },
+  { amt: 100, label: "إيجار مأوى لأسبوع", recipient: "مساعدة إيجار — مأوى مؤقت", icon: "🏚" },
+  { amt: 250, label: "دعم شامل عائلة شهرياً", recipient: "حزمة شاملة — أولوية قصوى", icon: "✦" },
 ];
 
 function Allocate({
@@ -304,95 +321,68 @@ function Allocate({
   );
 }
 
-/* ----------------------------- 3. ADOPT A FAMILY ----------------------------- */
-function Families({
-  families,
-  selectedCode,
-  onAdopt,
+/* ----------------------------- 5. METHODS ----------------------------- */
+function Methods({
+  intent,
+  onMethodKeyChange,
 }: {
-  families: AdoptableFamily[];
-  selectedCode: string | null;
-  onAdopt: (requestId: string, code: string) => void;
+  intent: DonationIntent;
+  onMethodKeyChange: (key: string) => void;
 }) {
+  useEffect(() => {
+    onMethodKeyChange("whish");
+  }, [onMethodKeyChange]);
+
   return (
-    <section id="families" className="bg-background">
+    <section id="methods" className="bg-background">
       <div className="mx-auto max-w-6xl px-5 py-14 sm:px-6 sm:py-20 lg:px-10">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
-          <div>
-            <Kicker>تبنَّ عائلة</Kicker>
-            <h2 className="mt-3 font-display text-3xl leading-tight sm:text-4xl md:text-5xl">
-              {families.length > 0 ? (
-                <>عائلات معتمدة <span className="text-clay">تنتظر دعمك.</span></>
-              ) : (
-                <>لا توجد عائلات معتمدة <span className="text-clay">حالياً.</span></>
-              )}
-            </h2>
+        <Kicker>طرق الدفع</Kicker>
+        <h2 className="mt-3 font-display text-3xl leading-tight sm:text-4xl md:text-5xl">
+          Whish Money <span className="text-clay">— الأسرع محلياً.</span>
+        </h2>
+        <p className="mt-4 max-w-2xl text-[14px] leading-relaxed text-muted-foreground sm:text-base">
+          للتبرّع عبر Whish، استخدم الرقم أدناه. للتبرّع عبر مصرف أو PayPal أو أي قناة أخرى،
+          تواصل معنا على الرقم الثاني وسنرسل لك التفاصيل.
+        </p>
+
+        <div className="mt-8 grid gap-5 lg:grid-cols-2">
+          <OneClickContact
+            label="Whish Money — تحويل مباشر"
+            phone={WHISH_DONATION_PHONE}
+            display={WHISH_DONATION_DISPLAY}
+          />
+          <OneClickContact
+            label="قنوات أخرى (مصرف، PayPal، OMT…)"
+            phone={ALT_DONATION_PHONE}
+            display={ALT_DONATION_DISPLAY}
+          />
+        </div>
+
+        <div className="mt-6 rounded-2xl border border-border bg-surface/50 p-5 sm:p-6">
+          <div className="font-display text-xl sm:text-2xl">Whish Money</div>
+          <div className="mt-3">
+            <CopyRow
+              label="رقم Whish"
+              value={WHISH_DONATION_DISPLAY}
+              href={telHref(WHISH_DONATION_PHONE)}
+            />
+            <CopyRow label="ملاحظة التحويل" value="Donation — SANAD" />
           </div>
-          <div className="hidden text-left sm:block">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">آخر تحديث</div>
-            <div className="font-mono text-sm text-foreground">منذ ١٢ دقيقة</div>
+          <div className="mt-5 rounded-lg bg-background px-4 py-3 text-[12px] leading-relaxed text-muted-foreground sm:text-sm">
+            بعد إتمام التحويل، أكمل نموذج التسجيل أدناه مع لقطة الشاشة (إن وُجدت).
+            للقنوات غير Whish، اتصل أو راسلنا على{" "}
+            <a href={telHref(ALT_DONATION_PHONE)} className="text-clay hover:underline" dir="ltr">
+              {ALT_DONATION_DISPLAY}
+            </a>
+            .
           </div>
         </div>
 
-        <div className="mt-10 grid gap-5 md:grid-cols-3">
-          {families.map((f) => {
-            const pct = f.goal > 0 ? Math.min(100, Math.round((f.raised / f.goal) * 100)) : 0;
-            const selected = selectedCode === f.reference_code;
-            return (
-              <article
-                key={f.request_id}
-                className={[
-                  "group flex flex-col overflow-hidden rounded-2xl border bg-card transition hover:border-clay/50 hover:shadow-lg",
-                  selected ? "border-clay ring-1 ring-clay/30" : "border-border",
-                ].join(" ")}
-              >
-                <div className="flex items-center justify-between border-b border-border bg-surface/60 px-5 py-3">
-                  <div dir="ltr" className="font-mono text-[12px] text-foreground">{f.reference_code}</div>
-                  <span className="rounded-full bg-clay/10 px-2.5 py-0.5 text-[10px] font-medium text-clay">{f.tag}</span>
-                </div>
-                <div className="flex flex-1 flex-col p-5">
-                  <div className="text-[13px] text-muted-foreground sm:text-sm">{f.region}</div>
-                  <div className="mt-3 flex items-baseline gap-5 text-[12px] sm:text-sm">
-                    <div><span className="font-display text-xl text-foreground sm:text-2xl">{f.family_size}</span> <span className="text-muted-foreground">فرد</span></div>
-                    {f.infants > 0 && (
-                      <div><span className="font-display text-xl text-foreground sm:text-2xl">{f.infants}</span> <span className="text-muted-foreground">رضيع</span></div>
-                    )}
-                  </div>
-                  {f.needs_summary && (
-                    <div className="mt-3 text-[12px] leading-relaxed text-foreground sm:text-sm">
-                      <span className="text-muted-foreground">يحتاجون: </span>{f.needs_summary}
-                    </div>
-                  )}
-
-                  <div className="mt-6 flex-1" />
-                  <div>
-                    <div className="flex items-baseline justify-between text-[11px] sm:text-xs">
-                      <div className="font-mono text-foreground">${Math.round(f.raised)} / ${Math.round(f.goal)}</div>
-                      <div className="text-muted-foreground">{pct}%</div>
-                    </div>
-                    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
-                      <div className="h-full rounded-full bg-clay transition-all" style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => onAdopt(f.request_id, f.reference_code)}
-                    className="mt-5 inline-flex items-center justify-center gap-2 rounded-full border border-foreground/80 py-2.5 text-[13px] font-medium text-foreground transition group-hover:bg-foreground group-hover:text-background sm:text-sm"
-                  >
-                    {selected ? "✓ مختارة — أكمل التبرّع ↓" : "ادعم هذه العائلة ←"}
-                  </button>
-                </div>
-              </article>
-            );
-          })}
-        </div>
+        <DonationSubmitForm intent={{ ...intent, methodKey: "whish" }} onMethodKeyChange={() => {}} />
       </div>
     </section>
   );
 }
-
-/* ----------------------------- 4. LEDGER ----------------------------- */
 function Ledger({ rows }: { rows: LedgerRow[] }) {
   const total = rows.reduce((s, r) => s + r.amount, 0);
   return (
@@ -465,89 +455,7 @@ function Ledger({ rows }: { rows: LedgerRow[] }) {
   );
 }
 
-/* ----------------------------- 5. METHODS ----------------------------- */
-const methods = [
-  { key: "whish", name: "Whish Money", note: "أسرع طريقة محلياً", fields: [
-    { l: "رقم المحفظة", v: "+961 71 234 567" },
-    { l: "اسم المستفيد", v: "Sanad NGO" },
-    { l: "ملاحظة التحويل", v: "Donation — SANAD" },
-  ]},
-  { key: "bank", name: "تحويل مصرفي", note: "للمساهمات الكبيرة", fields: [
-    { l: "اسم المصرف", v: "Bank Audi" },
-    { l: "رقم الحساب IBAN", v: "LB45 0056 0000 0000 1234 5678 9012" },
-    { l: "اسم صاحب الحساب", v: "Sanad Lebanon SAL" },
-  ]},
-  { key: "omt", name: "OMT / WU", note: "نقداً من أي فرع", fields: [
-    { l: "اسم المستفيد", v: "Mohammad H." },
-    { l: "رقم الهاتف", v: "+961 70 998 113" },
-    { l: "العملات المقبولة", v: "USD / LBP" },
-  ]},
-  { key: "paypal", name: "PayPal", note: "للخارج", fields: [
-    { l: "البريد الإلكتروني", v: "give@sanad.lb" },
-    { l: "العملات المقبولة", v: "USD / EUR / GBP" },
-    { l: "ملاحظة الرسوم", v: "PayPal يخصم ٣.٥٪ تقريباً" },
-  ]},
-];
-
-function Methods({
-  intent,
-  onMethodKeyChange,
-}: {
-  intent: DonationIntent;
-  onMethodKeyChange: (key: string) => void;
-}) {
-  const [active, setActive] = useState(intent.methodKey || methods[0].key);
-  const m = methods.find((x) => x.key === active)!;
-
-  useEffect(() => {
-    onMethodKeyChange(active);
-  }, [active, onMethodKeyChange]);
-
-  return (
-    <section id="methods" className="bg-background">
-      <div className="mx-auto max-w-6xl px-5 py-14 sm:px-6 sm:py-20 lg:px-10">
-        <Kicker>طرق الدفع</Kicker>
-        <h2 className="mt-3 font-display text-3xl leading-tight sm:text-4xl md:text-5xl">
-          اختر القناة. <span className="text-clay">الباقي علينا.</span>
-        </h2>
-
-        <div className="mt-8 grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:gap-10">
-          <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2">
-            {methods.map((x) => (
-              <button
-                key={x.key}
-                onClick={() => setActive(x.key)}
-                className={[
-                  "rounded-xl border p-4 text-right transition",
-                  active === x.key ? "border-foreground bg-foreground text-background" : "border-border bg-background hover:border-foreground/40",
-                ].join(" ")}
-              >
-                <div className="font-display text-lg sm:text-xl">{x.name}</div>
-                <div className={["mt-1 text-[11px] sm:text-xs", active === x.key ? "text-background/70" : "text-muted-foreground"].join(" ")}>{x.note}</div>
-              </button>
-            ))}
-          </div>
-
-          <div className="rounded-2xl border border-border bg-surface/50 p-5 sm:p-6">
-            <div className="flex items-baseline justify-between">
-              <div className="font-display text-xl sm:text-2xl">{m.name}</div>
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{m.note}</div>
-            </div>
-            <div className="mt-3">
-              {m.fields.map((f) => <CopyRow key={f.l} label={f.l} value={f.v} />)}
-            </div>
-            <div className="mt-5 rounded-lg bg-background px-4 py-3 text-[12px] leading-relaxed text-muted-foreground sm:text-sm">
-              بعد إتمام التحويل، أكمل نموذج التسجيل أدناه مع لقطة الشاشة (إن وُجدت).
-            </div>
-          </div>
-        </div>
-        <DonationSubmitForm intent={{ ...intent, methodKey: active }} onMethodKeyChange={setActive} />
-      </div>
-    </section>
-  );
-}
-
-/* ----------------------------- 6. PLEDGE WALL ----------------------------- */
+/* ----------------------------- 4. LEDGER ----------------------------- */
 function Pledges({ items }: { items: PledgeMessage[] }) {
   const fallback: PledgeMessage[] = [
     { donor_display: "أحمد م.", message: "لأمي التي علّمتني أن الكرم لا يُحسب." },
@@ -583,10 +491,10 @@ function Pledges({ items }: { items: PledgeMessage[] }) {
 
 /* ----------------------------- 7. ACCOUNTABILITY / FAQ ----------------------------- */
 const faqs = [
-  { q: "هل أحصل على إيصال رسمي؟", a: "نعم — يُرسل بريدياً خلال ٢٤ ساعة، ويحتوي رقم تحويلك والعائلة المستفيدة (إن اخترتها)." },
+  { q: "هل أحصل على إيصال رسمي؟", a: "نعم — يُرسل بريدياً خلال ٢٤ ساعة، ويحتوي رقم تحويلك وتفاصيل التبرّع." },
   { q: "ما نسبة المصاريف التشغيلية؟", a: "أقل من ٦٪. مفصّلة في التقرير الشهري بنداً بنداً — نشر علني، بلا تنقيح." },
   { q: "كيف أعرف أن المساعدة وصلت فعلاً؟", a: "كل عائلة توقّع باستلام برمز PIN ورمز QR. صورة الاستلام تُرسل لمتبرّعي تلك الحالة." },
-  { q: "هل يمكنني التبرّع شهرياً؟", a: "نعم. أرسل لنا 'شهري' على واتساب وسنوجّهك لإعداد تحويل تلقائي عبر مصرفك أو Whish." },
+  { q: "هل يمكنني التبرّع شهرياً؟", a: `نعم. تواصل معنا على ${ALT_DONATION_DISPLAY} (اتصال أو واتساب) وسنوجّهك لإعداد تحويل شهري.` },
   { q: "هل أنتم منظمة مسجّلة؟", a: "سند مبادرة محلية مستقلة، تعمل تحت غطاء جمعية محلية مسجلة في وزارة الداخلية اللبنانية. الوثائق متاحة عند الطلب." },
 ];
 
@@ -607,7 +515,9 @@ function Faq() {
             <div className="mt-6 rounded-xl border border-border bg-surface/60 p-5">
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground">للتدقيق و الاستفسار</div>
               <div className="mt-1 font-display text-lg text-foreground">audit@sanad.lb</div>
-              <div className="mt-1 font-mono text-sm text-foreground" dir="ltr">+961 70 000 000</div>
+              <a href={telHref(ALT_DONATION_PHONE)} className="mt-1 block font-mono text-sm text-clay hover:underline" dir="ltr">
+                {ALT_DONATION_DISPLAY}
+              </a>
             </div>
           </div>
 
@@ -666,8 +576,6 @@ function DonatePage() {
     pledgedRequestId: null,
     pledgedRequestCode: null,
   });
-  const { data: stats = DEFAULT_DONATE_STATS } = useDonationImpactStats();
-  const { data: families = [] } = useAdoptableFamilies(10);
   const { data: ledger = [] } = usePublicLedger(10);
   const [pledges, setPledges] = useState<PledgeMessage[]>([]);
   useEffect(() => {
@@ -680,26 +588,15 @@ function DonatePage() {
     })();
   }, []);
 
-  const handleMethodKeyChange = (key: string) => {
-    setIntent((prev) => ({ ...prev, methodKey: key }));
-  };
-
   return (
     <main className="min-h-screen bg-background">
       <PublicNav tone="dark" />
-      <Hero stats={stats} />
+      <Hero />
       <Promise />
       <DonationJourney />
       <Allocate amount={intent.amount} onAmountChange={(amount) => setIntent((p) => ({ ...p, amount }))} />
-      <Families
-        families={families}
-        selectedCode={intent.pledgedRequestCode}
-        onAdopt={(requestId, code) =>
-          setIntent((p) => ({ ...p, pledgedRequestId: requestId, pledgedRequestCode: code }))
-        }
-      />
       <Ledger rows={ledger} />
-      <Methods intent={intent} onMethodKeyChange={handleMethodKeyChange} />
+      <Methods intent={intent} onMethodKeyChange={() => {}} />
       <Pledges items={pledges} />
       <Faq />
       <FinalCTA />

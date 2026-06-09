@@ -1,5 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { sanadLogoPhoto } from "@/lib/donate-photos";
+import {
+  ALT_DONATION_DISPLAY,
+  ALT_DONATION_PHONE,
+  telHref,
+} from "@/lib/donation-contacts";
 
 const links = [
   { to: "/", label: "قدّم طلباً" },
@@ -59,9 +65,18 @@ export function PublicNav({
       <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-6 sm:py-6 lg:px-10">
         <Link to="/" className="flex items-center gap-3" onClick={() => setOpen(false)}>
           <span
-            className={["grid h-9 w-9 place-items-center rounded-full border font-display text-lg", logoBorder].join(" ")}
+            className={[
+              "relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border p-0.5",
+              logoBorder,
+            ].join(" ")}
             aria-hidden
-          >س</span>
+          >
+            <img
+              src={sanadLogoPhoto}
+              alt=""
+              className="h-full w-full scale-[1.15] rounded-full object-contain"
+            />
+          </span>
           <div className="leading-tight">
             <div className="font-display text-lg tracking-tight">سند</div>
             <div className={["text-[10px] uppercase tracking-[0.32em]", subtitleText].join(" ")}>
@@ -196,7 +211,14 @@ export function PublicNav({
               ].join(" ")}
               style={{ transitionDelay: open ? "440ms" : "0ms", transitionDuration: "500ms" }}
             >
-              للتواصل المباشر · <span dir="ltr" className="font-mono text-foreground">+961 70 000 000</span>
+              للتواصل المباشر ·{" "}
+              <a
+                href={telHref(ALT_DONATION_PHONE)}
+                dir="ltr"
+                className="font-mono text-foreground hover:text-clay"
+              >
+                {ALT_DONATION_DISPLAY}
+              </a>
             </div>
           </div>
         </div>
