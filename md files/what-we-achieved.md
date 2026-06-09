@@ -1,20 +1,22 @@
 # What We Have Achieved — Plain English Summary
 
 **Project:** SANAD Aid Connect  
-**Updated:** 2026-06-06  
-**Production database:** Live on Supabase (`lpdjtzwfxsjjudhxinmk`)
+**Updated:** 2026-06-09  
+**Production database:** Live on Supabase (`lpdjtzwfxsjjudhxinmk`)  
+**Production site:** https://sanadd.co  
+**For engineers/agents:** Start with [`agent-onboarding.md`](./agent-onboarding.md) — this doc is stakeholder-friendly.
 
-This document explains, in simple language, what the platform can do today and what we improved during the security and launch-readiness work. Each section includes a real-world example.
+This document explains, in simple language, what the platform can do today. Each section includes a real-world example.
 
 ---
 
 ## For families applying for aid
 
-### Submit an aid request with phone verification
+### Submit an aid request (no SMS OTP)
 
-A family fills out the form on the homepage, verifies their phone with a one-time code (OTP), and submits their request.
+A family fills out the form on the homepage. The system checks that their phone and ID document number have not been used before, then saves the request. Staff verify by phone call later — not by SMS code.
 
-**Example:** Fatima enters her details, receives an SMS code, enters `482910`, and her request is saved with reference code `SANAD-A7K2`.
+**Example:** Fatima enters her details and uploads her ID. The form stays open even on busy days (no daily “we are full” block). Her request is saved with reference code `SND-XXXXX`.
 
 ### Upload an ID document safely
 
@@ -38,17 +40,21 @@ If the request is still in a pending stage, the track page can show queue positi
 
 ## For donors
 
-### View live impact numbers and give a pledge
+### Donate via Whish or contact the team
 
-The donate page shows real totals (requests helped, verification rate, etc.) and lets someone submit a donation pledge.
+The donate page explains how to transfer via **Whish Money** (`+961 81 432 343`) with one-tap call or WhatsApp. For bank, PayPal, or other channels, donors contact `+961 3 689 363`.
 
-**Example:** A donor sees *1,240 families supported* on the homepage hero, opens `/donate`, and pledges $100 with a payment proof photo.
+**Example:** A donor opens `/donate`, copies the Whish number, sends $50 via Whish, then fills the registration form with amount and optional payment screenshot.
+
+### No “pick a family” list on the public page
+
+We removed the public list of adoptable cases — donations go to the general fund unless staff assign them later.
 
 ### Donation spam protection
 
 Pledge submissions are rate-limited so one person cannot flood the system with fake donations.
 
-**Example:** After 10 pledge attempts from the same connection in one hour, the next attempt gets a friendly “try again later” message instead of creating another row.
+**Example:** After 10 pledge attempts from the same connection in one hour, the next attempt gets a friendly “try again later” message.
 
 ---
 
@@ -65,6 +71,12 @@ Every aid request gets a permanent queue number when it enters the system. Staff
 Staff use **Admin → Queue** to see pending requests in FIFO order, assign work, and run integrity checks.
 
 **Example:** A reviewer opens the queue, selects the top 10 unassigned requests, and assigns them to themselves.
+
+### Daily intake batches (50 per Beirut day)
+
+On **Admin → Requests**, staff can turn on «دفعة اليوم» to review today’s submissions in batches of 50, ordered by queue number — while the public form stays open all day.
+
+**Example:** On a busy Tuesday, 120 requests arrived. Batch 1 shows #1–50, Batch 2 shows #51–100, Batch 3 shows #101–120.
 
 ### Scoring and urgency
 
@@ -170,17 +182,29 @@ If something is wrong, it logs an alert and writes to the audit log.
 
 ---
 
+## Mobile-friendly public site (2026-06-09)
+
+- Larger tap targets on buttons, checkboxes, and carousel dots
+- Donation journey photo swipes update glowing indicator dots (RTL-safe)
+- Public ledger shows as cards on phones (no sideways table scroll)
+- Safe-area padding for notched phones
+- Centered SANAD logo in hero on home and donate pages
+
+## Social & contact
+
+- Footer links to Instagram: [@hsaleh94](https://www.instagram.com/hsaleh94/?hl=en)
+- Editable in **Admin → Public settings → Contact**
+
 ## What is live in production (operator checklist)
 
 | Item | Status |
 |------|--------|
-| All database migrations applied | Done |
-| Eight edge functions deployed | Done |
-| Secrets configured (`SCHEDULED_FUNCTION_SECRET`, etc.) | Done |
-| JWT turned off for public proxy functions | Done |
-| Nightly integrity cron scheduled (`pg_cron`) | Done |
-| Manual integrity test passing | Done |
-| Production smoke test (`npm run smoke:ship`) | Passing |
+| Frontend on Netlify (`sanadd.co`) | Done |
+| June 9 migrations on Supabase | **Apply** `091000`–`091600` if not yet run |
+| Edge functions redeployed after CORS/limit changes | **Verify** operator |
+| CSP enforced (not report-only) | Done in `netlify.toml` |
+| 209 automated tests | Passing |
+| Production smoke test (`npm run smoke:ship`) | Run after deploy |
 
 ---
 
@@ -202,14 +226,12 @@ These are not blockers for launch but remain on the backlog:
 
 ## Quick “before go-live” test list
 
-1. Submit a test aid request end-to-end (OTP → form → ID upload).
+1. Submit a test aid request end-to-end (form → precheck → ID upload → submit).
 2. Track it on `/track` with code + phone.
-3. Submit a test donation pledge on `/donate`.
-4. Log in as staff — check queue, one request detail, one small export.
-5. Confirm homepage stats load.
-
-If all five pass on the live site, the platform is ready for real users.
+3. On `/donate` — copy Whish number, swipe journey photos (dots should move), submit pledge form.
+4. Log in as staff — check **دفعة اليوم** on requests list, one detail page, scoring preview.
+5. Confirm footer Instagram link opens correctly.
 
 ---
 
-*For technical step-by-step history, see [`risk-remediation-playbook.md`](./risk-remediation-playbook.md) and [`updates.md`](./updates.md).*
+*Technical reference: [`agent-onboarding.md`](./agent-onboarding.md) · History: [`updates.md`](./updates.md)*

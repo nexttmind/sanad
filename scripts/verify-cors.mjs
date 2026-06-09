@@ -23,6 +23,8 @@ try {
 
 const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "").replace(/\/$/, "");
 const origins = [
+  "https://sanadd.co",
+  "https://www.sanadd.co",
   "https://sanaddd.netlify.app",
   "http://localhost:5173",
 ];
@@ -70,7 +72,7 @@ if (fail > 0) {
 CORS still blocked. Fix (pick one):
 
 1) IMMEDIATE — Supabase Dashboard → Edge Functions → Secrets:
-   ALLOWED_ORIGINS=https://sanaddd.netlify.app,http://localhost:5173,http://localhost:3000,http://localhost:8080
+   ALLOWED_ORIGINS=https://sanadd.co,https://www.sanadd.co,http://localhost:5173,http://localhost:3000,http://localhost:8080
 
 2) REDEPLOY — paste latest index.ts for each function (JWT OFF), or run:
    npm run functions:deploy:precheck-aid-submission

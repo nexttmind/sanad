@@ -4,10 +4,11 @@
 
 **Audience:** Engineers and AI agents before security work.  
 **Supabase project:** `lpdjtzwfxsjjudhxinmk`  
-**Production site:** `https://sanaddd.netlify.app`  
-**Last updated:** 2026-06-08
+**Production site:** `https://sanadd.co`  
+**Last updated:** 2026-06-09
 
 **Related docs:**
+- [`agent-onboarding.md`](./agent-onboarding.md) — **start here** for current security + deploy state
 - [`risk-remediation-playbook.md`](./risk-remediation-playbook.md) — step-by-step fixes for audited RED/YELLOW risks
 - [`performance-scalability-spec.md`](./performance-scalability-spec.md) — admin overview RPC, throttled realtime
 - [`netlify-deploy.md`](./netlify-deploy.md) — env vars (never put service role on Netlify)
@@ -166,15 +167,18 @@ SCHEDULED_FUNCTION_SECRET
 | `src/lib/donations.ts` | Handles donation edge 429 |
 | `src/lib/upload-id-doc.ts` | Handles upload edge 429 |
 
-### 3.6 Rate limit remediation migration (planned)
+### 3.6 June 9 lock migrations (applied in repo)
 
-Create `supabase/migrations/20260609XXXXXX_lock_track_queue_position.sql`:
+| Migration | Purpose |
+|-----------|---------|
+| `20260609100000_lock_track_queue_position.sql` | `track_queue_position` → service_role only |
+| `20260609100100_harden_claim_first_admin.sql` | Safer first-admin claim |
+| `20260609110000_lock_aid_request_files_insert.sql` | Files metadata insert via edge only |
+| `20260609110100_rate_limit_log_retention.sql` | Log retention cleanup |
 
-```sql
-REVOKE ALL ON FUNCTION public.track_queue_position(TEXT, TEXT) FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.track_queue_position(TEXT, TEXT) FROM anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.track_queue_position(TEXT, TEXT) TO service_role;
-```
+### 3.7 CSP (Netlify)
+
+**Status:** **Enforced** in `netlify.toml` (no longer report-only as of commit `39346b4`).
 
 ---
 
@@ -223,8 +227,8 @@ Uses `pg_advisory_xact_lock(987654321)` so only one concurrent first login can c
 
 | File | Netlify production | Preview deploys |
 |------|-------------------|-----------------|
-| `submit-aid-request`, `precheck-aid-submission`, `submission-status`, `track-request-proxy`, `upload-id-doc` | `https://sanaddd.netlify.app` | `*--sanaddd.netlify.app` regex |
-| `admin-user-management`, `export-job-url`, `submit-donation` | `https://sanaddd.netlify.app` | `*--sanaddd.netlify.app` regex ✅ |
+| `submit-aid-request`, `precheck-aid-submission`, `submission-status`, `track-request-proxy`, `upload-id-doc` | `https://sanadd.co`, `https://www.sanadd.co` | `*--sanaddd.netlify.app` preview regex |
+| `admin-user-management`, `export-job-url`, `submit-donation` | `https://sanadd.co`, `https://www.sanadd.co` | `*--sanaddd.netlify.app` preview regex ✅ |
 
 **Shared source:** `supabase/functions/_shared/cors.ts` (inline into each function for Dashboard deploy).
 
@@ -232,7 +236,7 @@ Uses `pg_advisory_xact_lock(987654321)` so only one concurrent first login can c
 
 **Supabase secret (optional):**
 ```text
-ALLOWED_ORIGINS=https://sanaddd.netlify.app,http://localhost:5173,http://localhost:3000,http://localhost:8080
+ALLOWED_ORIGINS=https://sanadd.co,https://www.sanadd.co,http://localhost:5173,http://localhost:3000,http://localhost:8080
 ```
 
 ### 5.2 Netlify HTTP headers

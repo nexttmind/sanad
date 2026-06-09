@@ -91,6 +91,8 @@ const DEFAULT_ALLOWED = [
   "http://localhost:5173",
   "http://localhost:3000",
   "http://localhost:8080",
+  "https://sanadd.co",
+  "https://www.sanadd.co",
   "https://sanaddd.netlify.app",
 ];
 const BASE_ALLOW_HEADERS = "authorization, x-client-info, apikey, content-type";
@@ -108,6 +110,7 @@ function isNetlifySanadOrigin(origin: string): boolean {
     const { protocol, hostname } = new URL(origin);
     if (protocol !== "https:") return false;
     const host = hostname.toLowerCase();
+    if (host === "sanadd.co" || host === "www.sanadd.co") return true;
     if (host === "sanaddd.netlify.app") return true;
     return /^[\w-]+--sanaddd\.netlify\.app$/.test(host);
   } catch {

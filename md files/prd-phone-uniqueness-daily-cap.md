@@ -1,8 +1,19 @@
 # PRD — Phone + National ID Uniqueness + Daily Cap (No OTP)
 
-**Status:** Production-ready for phased implementation (v1.1 — national ID + production audit)  
+**Status:** Phone/ID rules **live** · **Daily cap policy superseded (2026-06-09)**  
 **Source plan:** `.cursor/plans/phone_limits_no_otp_3b909e93.plan.md`  
 **Supersedes:** PRD Feature 2 (OTP Phone Verification) in [`prd.md`](./prd.md) — OTP is removed, not built.
+
+> ### ⚠️ Policy update (2026-06-09)
+>
+> **Public daily cap is removed.** The form on `/` is always open (`get_submission_status().accepting = true`).
+>
+> **Admin batches:** Staff review intake in batches of **50 per Beirut calendar day**, FIFO by `queue_number`, via «دفعة اليوم» on `/admin/requests`.
+>
+> **Migration:** `20260609150000_daily_cap_admin_batches_only.sql`  
+> **Canonical summary:** [`agent-onboarding.md`](./agent-onboarding.md) §2
+>
+> Sections below that describe blocking the public form at 50/day are **historical** — keep phone/ID uniqueness rules; ignore cap UI/trigger specs unless reverting policy.
 
 ---
 

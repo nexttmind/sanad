@@ -3,7 +3,9 @@
 **Project:** SANAD Aid Connect  
 **Feature:** One submission per phone / device / IP + 50 requests per day  
 **Updated:** 2026-06-06  
-**Status:** Planning — do not implement out of phase order
+**Status:** **Superseded for daily cap (2026-06-09)** — see [`agent-onboarding.md`](./agent-onboarding.md) §2
+
+> **Current policy:** Phone + national ID uniqueness **remain**. Public daily cap **removed**. Admin reviews in batches of 50/Beirut day. Device/IP one-ever rules from this doc were **not** implemented.
 
 This document splits the submission-uniqueness work into **five phases**. Each phase lists **file specs** (rules you must read and satisfy **before** editing that file). Phases are sequential unless marked otherwise.
 

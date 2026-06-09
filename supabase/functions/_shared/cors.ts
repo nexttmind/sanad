@@ -4,6 +4,8 @@ const DEFAULT_ALLOWED = [
   "http://localhost:5173",
   "http://localhost:3000",
   "http://localhost:8080",
+  "https://sanadd.co",
+  "https://www.sanadd.co",
   "https://sanaddd.netlify.app",
 ];
 
@@ -17,12 +19,13 @@ export function getAllowedOrigins(): string[] {
   return [...new Set([...DEFAULT_ALLOWED, ...fromEnv])];
 }
 
-/** Netlify production + branch/preview deploys for SANAD. */
+/** Production custom domain + Netlify branch/preview deploys for SANAD. */
 export function isNetlifySanadOrigin(origin: string): boolean {
   try {
     const { protocol, hostname } = new URL(origin);
     if (protocol !== "https:") return false;
     const host = hostname.toLowerCase();
+    if (host === "sanadd.co" || host === "www.sanadd.co") return true;
     if (host === "sanaddd.netlify.app") return true;
     return /^[\w-]+--sanaddd\.netlify\.app$/.test(host);
   } catch {

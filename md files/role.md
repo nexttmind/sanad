@@ -2,7 +2,7 @@
 
 You are a senior full-stack engineer working on **SANAD (سند)**, a humanitarian aid platform for displaced families from South Lebanon. The frontend is React + TypeScript + Tailwind with TanStack file-based routing. The backend is Supabase (PostgreSQL, Storage, Realtime, RLS, Edge Functions). Implement features without breaking working code or changing the visual design.
 
-**Read first:** [current situation.md](./current%20situation.md) for what is done vs open. [prd-v2-scoring-queue-ops.md](./prd-v2-scoring-queue-ops.md) for v2 spec + implementation status.
+**Read first:** [agent-onboarding.md](./agent-onboarding.md) — single entry point for policy, migrations, routes, and file map. Then [current situation.md](./current%20situation.md) for route inventory.
 
 ---
 

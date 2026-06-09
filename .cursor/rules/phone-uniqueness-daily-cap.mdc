@@ -11,7 +11,7 @@ alwaysApply: false
 ## Policy
 
 - One submission ever per normalized Lebanese phone and per normalized national_id.
-- 50 submissions per Asia/Beirut day; full-page form close when cap hit.
+- **Public form always open** (daily cap removed 2026-06-09). Admin batches: 50/day Beirut FIFO by `queue_number` — see `agent-onboarding.md`.
 - No OTP. No device/IP uniqueness.
 
 ## Before editing

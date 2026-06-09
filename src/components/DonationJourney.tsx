@@ -9,29 +9,78 @@ function Kicker({ children }: { children: React.ReactNode }) {
   );
 }
 
+function resolveActiveSlideIndex(container: HTMLDivElement): number {
+  const containerMid = container.getBoundingClientRect().left + container.clientWidth / 2;
+  const slides = Array.from(container.children) as HTMLElement[];
+  let bestIdx = 0;
+  let bestDist = Number.POSITIVE_INFINITY;
+
+  slides.forEach((slide, i) => {
+    const rect = slide.getBoundingClientRect();
+    const slideMid = rect.left + rect.width / 2;
+    const dist = Math.abs(slideMid - containerMid);
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestIdx = i;
+    }
+  });
+
+  return bestIdx;
+}
+
 function StageCarousel({ stage }: { stage: DonationJourneyStage }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeIdx, setActiveIdx] = useState(0);
 
-  const onScroll = useCallback(() => {
+  const syncActiveIndex = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const w = el.clientWidth;
-    if (w <= 0) return;
-    setActiveIdx(Math.round(el.scrollLeft / w));
+    setActiveIdx(resolveActiveSlideIndex(el));
   }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    syncActiveIndex();
+
+    let raf = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(syncActiveIndex);
+    };
+
+    el.addEventListener("scroll", onScroll, { passive: true });
+    el.addEventListener("scrollend", syncActiveIndex);
+    window.addEventListener("resize", syncActiveIndex);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      el.removeEventListener("scroll", onScroll);
+      el.removeEventListener("scrollend", syncActiveIndex);
+      window.removeEventListener("resize", syncActiveIndex);
+    };
+  }, [syncActiveIndex, stage.photos.length]);
+
+  const goToSlide = (index: number) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const slide = el.children[index] as HTMLElement | undefined;
+    slide?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    setActiveIdx(index);
+  };
 
   return (
     <div className="relative">
       <div
         ref={scrollRef}
-        onScroll={onScroll}
         className="flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {stage.photos.map((photo, i) => (
           <div
             key={photo.src}
             className="w-full shrink-0 snap-center snap-always px-1 sm:px-0"
+            aria-hidden={i !== activeIdx}
           >
             <div className="overflow-hidden rounded-2xl border border-white/10 bg-ink/40 sm:rounded-3xl">
               <div className="relative aspect-[4/5] sm:aspect-[5/4]">
@@ -52,27 +101,34 @@ function StageCarousel({ stage }: { stage: DonationJourneyStage }) {
       </div>
 
       {stage.photos.length > 1 && (
-        <div className="mt-3 flex items-center justify-center gap-2">
-          {stage.photos.map((photo, i) => (
-            <button
-              key={photo.src}
-              type="button"
-              aria-label={`صورة ${i + 1} من ${stage.photos.length}`}
-              onClick={() => {
-                const el = scrollRef.current;
-                if (!el) return;
-                el.scrollTo({ left: i * el.clientWidth, behavior: "smooth" });
-              }}
-              className="touch-target grid place-items-center p-2"
-            >
-              <span
-                className={[
-                  "block h-2 rounded-full transition-all duration-300",
-                  i === activeIdx ? "w-8 bg-clay" : "w-2 bg-white/25",
-                ].join(" ")}
-              />
-            </button>
-          ))}
+        <div
+          className="mt-4 flex items-center justify-center gap-1.5"
+          role="tablist"
+          aria-label={`صور المرحلة — ${activeIdx + 1} من ${stage.photos.length}`}
+        >
+          {stage.photos.map((photo, i) => {
+            const isActive = i === activeIdx;
+            return (
+              <button
+                key={photo.src}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                aria-label={`صورة ${i + 1} من ${stage.photos.length}`}
+                onClick={() => goToSlide(i)}
+                className="touch-target grid place-items-center px-1.5 py-2"
+              >
+                <span
+                  className={[
+                    "block rounded-full transition-all duration-300 ease-out",
+                    isActive
+                      ? "h-2.5 w-8 bg-clay shadow-[0_0_14px_rgba(131,235,145,0.65)]"
+                      : "h-2 w-2 bg-white/35 hover:bg-white/55",
+                  ].join(" ")}
+                />
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
@@ -261,10 +317,10 @@ export function DonationJourney() {
             كل صورة موثّقة من عملياتنا الفعلية في الجنوب اللبناني. شفافية ليست شعاراً — إنها التزام.
           </p>
           <a
-            href="#allocate"
+            href="#methods"
             className="inline-flex items-center gap-2 rounded-full bg-clay px-6 py-3 text-[13px] font-medium text-white transition hover:bg-clay/90 sm:text-sm"
           >
-            اختر مبلغك وابدأ ↓
+            اختر طريقة التبرّع وابدأ ↓
           </a>
         </div>
       </div>

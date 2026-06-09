@@ -1,6 +1,10 @@
 # Deploy SANAD on Netlify
 
+**Production:** https://sanadd.co · **Agent context:** [`agent-onboarding.md`](./agent-onboarding.md)
+
 This project uses **TanStack Start** (server-side rendering). Netlify runs the app as a serverless function plus static assets.
+
+**CSP:** Enforced in `netlify.toml` (security phase C, 2026-06-09).
 
 ---
 
@@ -73,13 +77,13 @@ After you know your Netlify URL, add it to Supabase:
 
 **Edge Functions → Secrets → `ALLOWED_ORIGINS`**
 
-Example:
+Example (SANAD production):
 
 ```
-https://your-site-name.netlify.app,http://localhost:5173,http://localhost:8080
+https://sanadd.co,https://www.sanadd.co,http://localhost:5173,http://localhost:8080
 ```
 
-Use your custom domain too if you add one later.
+Include Netlify preview URLs via the built-in `*--sanaddd.netlify.app` regex in edge functions, or add branch deploy origins to `ALLOWED_ORIGINS` if needed.
 
 ---
 

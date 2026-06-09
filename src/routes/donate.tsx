@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { DonationSubmitForm, type DonationIntent } from "@/components/DonationSubmitForm";
 import { PublicNav } from "@/components/PublicNav";
 import { PublicFooter } from "@/components/PublicFooter";
@@ -213,133 +213,22 @@ function Promise() {
   );
 }
 
-/* ----------------------------- 2. ALLOCATE — interactive ----------------------------- */
-const allocations = [
-  { amt: 10, label: "حليب رضيع لأسبوع", recipient: "مستلزمات رضّع — أولوية", icon: "🍼" },
-  { amt: 25, label: "سلة طعام أساسية ٤ أيام", recipient: "سلة غذائية — عائلة متوسطة", icon: "🥖" },
-  { amt: 50, label: "دواء شهري", recipient: "أدوية أساسية — حالة طبية", icon: "💊" },
-  { amt: 100, label: "إيجار مأوى لأسبوع", recipient: "مساعدة إيجار — مأوى مؤقت", icon: "🏚" },
-  { amt: 250, label: "دعم شامل عائلة شهرياً", recipient: "حزمة شاملة — أولوية قصوى", icon: "✦" },
-];
-
-function Allocate({
-  amount,
-  onAmountChange,
-}: {
-  amount: number;
-  onAmountChange: (amount: number) => void;
-}) {
-  const [custom, setCustom] = useState("");
-  const eff = custom ? Number(custom) || 0 : amount;
-  const match = useMemo(() => {
-    // find nearest matching allocation tier <= eff
-    const sorted = [...allocations].sort((a, b) => a.amt - b.amt);
-    let chosen = sorted[0];
-    for (const a of sorted) if (a.amt <= eff) chosen = a;
-    return chosen;
-  }, [eff]);
-
-  return (
-    <section id="allocate" className="bg-surface-2/40">
-      <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20 lg:px-10">
-        <div className="grid gap-10 lg:grid-cols-[1fr_1.1fr] lg:gap-16">
-          <div>
-            <Kicker>اختَر أثرك</Kicker>
-            <h2 className="mt-3 font-display text-3xl leading-tight sm:text-4xl md:text-5xl">
-              لكل مبلغ <span className="text-clay">قصّة محدّدة.</span>
-            </h2>
-            <p className="mt-4 max-w-md text-[14px] leading-relaxed text-muted-foreground sm:text-base">
-              مرِّر بين المبالغ. سترى تماماً ما الذي ستشتريه ليرتك، ومن سيستلمها هذا الأسبوع.
-            </p>
-
-            <div className="mt-8">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">المبلغ بالدولار</div>
-              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5">
-                {allocations.map((a) => (
-                  <button
-                    key={a.amt}
-                    type="button"
-                    onClick={() => { onAmountChange(a.amt); setCustom(""); }}
-                    className={[
-                      "min-h-11 rounded-xl border px-2 py-3 font-display text-base transition sm:px-2 sm:text-lg",
-                      eff === a.amt && !custom ? "border-clay bg-clay text-white" : "border-border bg-background hover:border-clay/60",
-                    ].join(" ")}
-                  >${a.amt}</button>
-                ))}
-              </div>
-              <div className="mt-3 flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-3">
-                <span className="font-mono text-sm text-muted-foreground">$</span>
-                <input
-                  type="number" inputMode="decimal" min={1} placeholder="مبلغ مخصص"
-                  value={custom}
-                  onChange={(e) => {
-                    setCustom(e.target.value);
-                    const val = Number(e.target.value);
-                    if (val > 0) onAmountChange(val);
-                  }}
-                  className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* visual receipt card */}
-          <div className="relative">
-            <div className="relative overflow-hidden rounded-2xl border border-border bg-background p-6 shadow-sm sm:p-8">
-              <div className="absolute -left-12 -top-12 h-40 w-40 rounded-full bg-clay/10 blur-3xl" />
-              <div className="relative flex items-baseline justify-between">
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">إيصالك المستقبلي</div>
-                <div className="font-mono text-[10px] text-muted-foreground">SANAD · {new Date().getFullYear()}</div>
-              </div>
-
-              <div className="mt-6 flex items-baseline gap-3">
-                <div className="font-display text-5xl leading-none text-foreground sm:text-6xl md:text-7xl">${eff || 0}</div>
-                <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">USD</div>
-              </div>
-
-              <div className="mt-8 rounded-xl bg-surface p-5">
-                <div className="flex items-start gap-4">
-                  <div className="text-3xl">{match.icon}</div>
-                  <div className="min-w-0">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">ستشتري</div>
-                    <div className="mt-1 font-display text-xl leading-tight text-foreground sm:text-2xl">{match.label}</div>
-                    <div className="mt-3 text-[10px] uppercase tracking-wider text-muted-foreground">للمستفيد</div>
-                    <div dir="ltr" className="mt-1 font-mono text-sm text-foreground">{match.recipient}</div>
-                  </div>
-                </div>
-              </div>
-
-              {eff > match.amt && (
-                <div className="mt-4 rounded-lg border border-clay/30 bg-clay/5 px-4 py-3 text-[12px] leading-relaxed text-foreground sm:text-sm">
-                  المتبقّي <span className="font-mono text-clay">${eff - match.amt}</span> سيُضاف إلى صندوق الطوارئ للحالات الحرجة هذا الأسبوع.
-                </div>
-              )}
-
-              <a href="#methods" className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-foreground py-3.5 text-[13px] font-medium text-background transition hover:bg-clay sm:text-sm">
-                أكمل التبرّع بـ ${eff || 0} <span>←</span>
-              </a>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 /* ----------------------------- 5. METHODS ----------------------------- */
 function Methods({
   intent,
   onMethodKeyChange,
+  onAmountChange,
 }: {
   intent: DonationIntent;
   onMethodKeyChange: (key: string) => void;
+  onAmountChange: (amount: number) => void;
 }) {
   useEffect(() => {
     onMethodKeyChange("whish");
   }, [onMethodKeyChange]);
 
   return (
-    <section id="methods" className="bg-background">
+    <section id="methods" className="bg-surface-2/40">
       <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20 lg:px-10">
         <Kicker>طرق الدفع</Kicker>
         <h2 className="mt-3 font-display text-3xl leading-tight sm:text-4xl md:text-5xl">
@@ -350,40 +239,46 @@ function Methods({
           تواصل معنا على الرقم الثاني وسنرسل لك التفاصيل.
         </p>
 
-        <div className="mt-8 grid gap-5 lg:grid-cols-2">
-          <OneClickContact
-            label="Whish Money — تحويل مباشر"
-            phone={WHISH_DONATION_PHONE}
-            display={WHISH_DONATION_DISPLAY}
-          />
-          <OneClickContact
-            label="قنوات أخرى (مصرف، PayPal، OMT…)"
-            phone={ALT_DONATION_PHONE}
-            display={ALT_DONATION_DISPLAY}
-          />
-        </div>
-
-        <div className="mt-6 rounded-2xl border border-border bg-surface/50 p-5 sm:p-6">
-          <div className="font-display text-xl sm:text-2xl">Whish Money</div>
-          <div className="mt-3">
-            <CopyRow
-              label="رقم Whish"
-              value={WHISH_DONATION_DISPLAY}
-              href={telHref(WHISH_DONATION_PHONE)}
+        <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_1.1fr] lg:gap-12">
+          <div className="order-2 grid gap-5 sm:grid-cols-2 lg:order-1 lg:grid-cols-1">
+            <OneClickContact
+              label="Whish Money — تحويل مباشر"
+              phone={WHISH_DONATION_PHONE}
+              display={WHISH_DONATION_DISPLAY}
             />
-            <CopyRow label="ملاحظة التحويل" value="Donation — SANAD" />
+            <OneClickContact
+              label="قنوات أخرى (مصرف، PayPal، OMT…)"
+              phone={ALT_DONATION_PHONE}
+              display={ALT_DONATION_DISPLAY}
+            />
           </div>
-          <div className="mt-5 rounded-lg bg-background px-4 py-3 text-[12px] leading-relaxed text-muted-foreground sm:text-sm">
-            بعد إتمام التحويل، أكمل نموذج التسجيل أدناه مع لقطة الشاشة (إن وُجدت).
-            للقنوات غير Whish، اتصل أو راسلنا على{" "}
-            <a href={telHref(ALT_DONATION_PHONE)} className="text-clay hover:underline" dir="ltr">
-              {ALT_DONATION_DISPLAY}
-            </a>
-            .
+
+          <div className="order-1 rounded-2xl border border-border bg-background p-5 shadow-sm sm:p-6 lg:order-2">
+            <div className="font-display text-xl sm:text-2xl">Whish Money</div>
+            <div className="mt-3">
+              <CopyRow
+                label="رقم Whish"
+                value={WHISH_DONATION_DISPLAY}
+                href={telHref(WHISH_DONATION_PHONE)}
+              />
+              <CopyRow label="ملاحظة التحويل" value="Donation — SANAD" />
+            </div>
+            <div className="mt-5 rounded-lg bg-surface px-4 py-3 text-[12px] leading-relaxed text-muted-foreground sm:text-sm">
+              بعد إتمام التحويل، أكمل نموذج التسجيل أدناه مع لقطة الشاشة (إن وُجدت).
+              للقنوات غير Whish، اتصل أو راسلنا على{" "}
+              <a href={telHref(ALT_DONATION_PHONE)} className="text-clay hover:underline" dir="ltr">
+                {ALT_DONATION_DISPLAY}
+              </a>
+              .
+            </div>
           </div>
         </div>
 
-        <DonationSubmitForm intent={{ ...intent, methodKey: "whish" }} onMethodKeyChange={() => {}} />
+        <DonationSubmitForm
+          intent={{ ...intent, methodKey: "whish" }}
+          onMethodKeyChange={() => {}}
+          onAmountChange={onAmountChange}
+        />
       </div>
     </section>
   );
@@ -593,7 +488,7 @@ function FinalCTA() {
           <span className="text-white/85">— إذا قرّرتَ ذلك أنت.</span>
         </h2>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <a href="#allocate" className="rounded-full bg-white px-7 py-3.5 text-[14px] font-medium text-clay transition hover:bg-ink hover:text-white sm:text-base">
+          <a href="#methods" className="rounded-full bg-white px-7 py-3.5 text-[14px] font-medium text-clay transition hover:bg-ink hover:text-white sm:text-base">
             تبرّع الآن
           </a>
           <Link to="/" className="rounded-full border border-white/40 px-6 py-3.5 text-[14px] text-white transition hover:bg-white/10 sm:text-base">
@@ -608,7 +503,7 @@ function FinalCTA() {
 /* ----------------------------- PAGE ----------------------------- */
 function DonatePage() {
   const [intent, setIntent] = useState<DonationIntent>({
-    amount: 25,
+    amount: 0,
     methodKey: "whish",
     pledgedRequestId: null,
     pledgedRequestCode: null,
@@ -631,9 +526,12 @@ function DonatePage() {
       <Hero />
       <Promise />
       <DonationJourney />
-      <Allocate amount={intent.amount} onAmountChange={(amount) => setIntent((p) => ({ ...p, amount }))} />
+      <Methods
+        intent={intent}
+        onMethodKeyChange={() => {}}
+        onAmountChange={(amount) => setIntent((p) => ({ ...p, amount }))}
+      />
       <Ledger rows={ledger} />
-      <Methods intent={intent} onMethodKeyChange={() => {}} />
       <Pledges items={pledges} />
       <Faq />
       <FinalCTA />

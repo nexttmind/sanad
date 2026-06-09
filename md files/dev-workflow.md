@@ -1,5 +1,7 @@
 # Local dev workflow (TanStack Start + Netlify)
 
+**Agent context:** [`agent-onboarding.md`](./agent-onboarding.md)
+
 ## Quick start
 
 ```bash

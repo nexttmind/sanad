@@ -1,6 +1,9 @@
 # SANAD — Mobile Responsive Plan & Audit
 
-> **Goal:** Every section and div across all 17 routes must be usable from **320px** (iPhone SE) through **2560px+** desktops, in **RTL Arabic**.
+> **Goal:** Every section and div across all public routes must be usable from **320px** (iPhone SE) through **2560px+** desktops, in **RTL Arabic**.  
+> **Agent entry:** [`agent-onboarding.md`](./agent-onboarding.md) §8 summarizes what shipped.
+
+**Last updated:** 2026-06-09 (public pages pass)
 
 ---
 
@@ -24,8 +27,10 @@
 |------|------|--------|
 | Viewport + notch | `__root.tsx` | `viewport-fit=cover` |
 | Overflow guard | `styles.css` | `overflow-x: clip` on `html`/`body` |
-| Safe areas | `styles.css`, `AdminShell`, `auth` | `env(safe-area-inset-*)` padding |
-| Touch scroll tables | `styles.css` | `.table-scroll` utility |
+| Safe areas | `styles.css`, `PublicNav`, `AdminShell`, `auth` | `env(safe-area-inset-*)` + `.safe-top` |
+| Nav clearance | `styles.css` | `.public-nav-offset` under fixed header |
+| Touch targets | `styles.css` | `.touch-target` min 44px |
+| Touch scroll tables | `styles.css` | `.table-scroll` utility (desktop ledger only) |
 | Stacking detail rows | `styles.css` | `.detail-row` — label above value on <480px |
 
 ---
@@ -54,19 +59,20 @@
 | Success + QR | — | ✅ QR scales `max-w-full`, code stacks vertically |
 | PhoneOtpSection | — | ✅ OTP centered, horizontal scroll if needed |
 
-### `/donate` — Donation Page
+### `/donate` — Donation Page (2026-06-09)
 
 | Section | Mobile fixes |
 |---------|--------------|
-| Hero + live ticker | ✅ Stats stack 1-col below 400px, smaller type |
+| Hero | ✅ Shorter `72vh` on mobile, centered logo, full-width CTAs |
 | Promise (3 cards) | ✅ Stack → `sm:3-col` |
-| DonationJourney | ✅ Mobile carousel + step pills (existing) |
-| Allocate amount picker | ✅ `grid-cols-3` → `sm:grid-cols-5` |
-| Families cards | ✅ 1-col → `md:3-col`, header stacks |
-| Ledger table | ✅ `.table-scroll` + `min-w-[520px]` |
-| Payment methods | ✅ 1-col → `min-[420px]:2-col` |
+| DonationJourney | ✅ Carousel dots — **RTL-safe** active index + clay glow on swipe |
+| ~~Allocate amount picker~~ | **Removed** — amount in registration form only |
+| ~~Families cards~~ | **Removed** |
+| Whish / Methods | ✅ Whish card first on mobile; tel/WhatsApp stack full-width |
+| Ledger | ✅ **Card layout** `md:hidden`; table only on `md+` (no horizontal scroll) |
+| Registration form | ✅ `min-h-11` inputs, styled file upload |
 | Pledge wall | ✅ Masonry `columns-1 sm:2 lg:3` |
-| FAQ | ✅ Accordion full-width |
+| FAQ | ✅ Accordion full-width, `min-h-11` tap rows |
 
 ### `/track` — Track Request
 
@@ -169,38 +175,30 @@ Test every page at these widths in Chrome DevTools (RTL):
 
 ---
 
-## Files Changed (this implementation)
+## Files Changed (2026-06-09 public pass)
 
 ```
-src/styles.css                          — global mobile utilities
-src/routes/__root.tsx                   — viewport meta
-src/components/PublicFooter.tsx         — padding
-src/components/AdminShell.tsx           — safe-area main
-src/components/PhoneOtpSection.tsx      — OTP centering
-src/components/admin/EditableRequestSections.tsx — detail-row
-src/components/admin/QueueIntegrityPanel.tsx     — table-scroll
-src/routes/index.tsx                    — success QR
-src/routes/donate.tsx                   — hero, allocate, ledger, families
-src/routes/auth.tsx                     — safe-area
-src/routes/admin.index.tsx              — stats + list cards
-src/routes/admin.requests.tsx           — filters + table
-src/routes/admin.requests.$id.tsx       — detail rows + cards
-src/routes/admin.queue.tsx              — bulk assign + table
-src/routes/admin.donations.tsx          — search + table
-src/routes/admin.references.tsx         — table
-src/routes/admin.users.tsx              — table
-src/routes/admin.audit.tsx              — table
+src/styles.css                    — public-nav-offset, touch-target, safe-area bottom
+src/components/PublicNav.tsx      — safe-top, 44px menu button, mobile sheet padding
+src/components/PublicFooter.tsx   — 2-col tablet, logo image, break-all contacts
+src/components/DonationJourney.tsx — RTL carousel dots, sticky pills safe-top
+src/components/DonationSubmitForm.tsx — amount field, touch inputs
+src/components/PublicQrCard.tsx   — larger download button
+src/routes/index.tsx              — hero logo, field/toggle/chip mobile, no cap UI
+src/routes/donate.tsx             — hero, methods layout, ledger cards, FAQ
+src/routes/track.tsx              — public-nav-offset, stacked search row
 ```
+
+Earlier (June 6): admin tables, `AdminShell`, `admin.requests.*`, etc. — still valid.
 
 ---
 
 ## Future Enhancements (optional)
 
-1. **Admin mobile card views** — Replace horizontal table scroll with card-per-row on `<md` for donations/requests
-2. **Mobile admin search** — Collapsible search icon in AdminShell header
-3. **Playwright visual regression** — Snapshot tests at 375px and 1280px per route
-4. **PWA** — Add manifest + service worker for offline track page
+1. **Admin mobile card views** — Card-per-row on `<md` for admin donations/requests tables
+2. **Playwright visual regression** — Snapshot at 375px and 1280px per route
+3. **PWA** — manifest + service worker for offline track page
 
 ---
 
-*Last updated: June 6, 2026*
+*See [`agent-onboarding.md`](./agent-onboarding.md) for full feature context.*

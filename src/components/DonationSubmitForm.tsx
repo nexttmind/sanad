@@ -16,9 +16,10 @@ export type DonationIntent = {
 type Props = {
   intent: DonationIntent;
   onMethodKeyChange: (key: string) => void;
+  onAmountChange: (amount: number) => void;
 };
 
-export function DonationSubmitForm({ intent, onMethodKeyChange }: Props) {
+export function DonationSubmitForm({ intent, onMethodKeyChange, onAmountChange }: Props) {
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
   const [anonymous, setAnonymous] = useState(false);
@@ -37,7 +38,7 @@ export function DonationSubmitForm({ intent, onMethodKeyChange }: Props) {
       return;
     }
     if (!intent.amount || intent.amount <= 0) {
-      setError("يرجى اختيار مبلغ التبرّع من القسم أعلاه.");
+      setError("يرجى إدخال مبلغ التبرّع.");
       return;
     }
     if (!anonymous && !name.trim()) {
@@ -78,17 +79,33 @@ export function DonationSubmitForm({ intent, onMethodKeyChange }: Props) {
     <form onSubmit={(e) => void handleSubmit(e)} className="mt-8 rounded-2xl border border-border bg-background p-5 sm:p-6">
       <div className="font-display text-xl sm:text-2xl">تسجيل تبرّعك</div>
       <p className="mt-1 text-[12px] text-muted-foreground sm:text-sm">
-        بعد التحويل عبر الطريقة المختارة، سجّل التفاصيل هنا. المبلغ:{" "}
-        <span className="font-mono text-foreground">${intent.amount || 0}</span>
+        بعد التحويل عبر الطريقة المختارة، سجّل التفاصيل هنا.
         {intent.pledgedRequestCode && (
           <>
             {" "}
-            · العائلة: <span dir="ltr" className="font-mono">{intent.pledgedRequestCode}</span>
+            العائلة: <span dir="ltr" className="font-mono">{intent.pledgedRequestCode}</span>
           </>
         )}
       </p>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <label className="block sm:col-span-2">
+          <span className="mb-1.5 block text-[11px] text-muted-foreground">المبلغ بالدولار (USD)</span>
+          <div className="flex min-h-11 items-center gap-2 rounded-lg border border-border bg-background px-3 py-3">
+            <span className="font-mono text-sm text-muted-foreground">$</span>
+            <input
+              type="number"
+              inputMode="decimal"
+              min={1}
+              step="1"
+              value={intent.amount > 0 ? intent.amount : ""}
+              onChange={(e) => onAmountChange(Number(e.target.value) || 0)}
+              placeholder="مثال: 25"
+              className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none"
+              required
+            />
+          </div>
+        </label>
         <input
           value={name}
           disabled={anonymous}
