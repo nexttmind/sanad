@@ -139,16 +139,21 @@ function Hero() {
         <div className="absolute inset-0 grain" />
       </div>
 
-      {/* logo mark — top corner of hero (RTL: visually top-right) */}
-      <div className="pointer-events-none absolute end-4 top-[max(5.5rem,calc(env(safe-area-inset-top)+4.5rem))] z-10 sm:end-6 lg:end-10">
-        <div className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-white/40 bg-white/95 p-1.5 shadow-lg sm:h-16 sm:w-16">
-          <img src={sanadLogoPhoto} alt="شعار سند" className="h-full w-full scale-[1.15] object-contain" />
-        </div>
-      </div>
-
       {/* content */}
       <div className="relative mx-auto flex min-h-[72vh] max-w-6xl flex-col px-4 pb-10 public-nav-offset sm:min-h-[88vh] sm:px-6 sm:pb-12 lg:px-10">
-        <div className="fade-soft flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.24em] text-white/70 sm:tracking-[0.32em]">
+        <div className="fade-soft flex flex-col items-center text-center">
+          <div className="relative">
+            <div className="absolute inset-0 -m-3 rounded-full bg-primary/25 blur-2xl" />
+            <div className="relative flex h-[5.25rem] w-[5.25rem] items-center justify-center overflow-hidden rounded-full border border-white/40 bg-white/95 p-1.5 shadow-lg sm:h-24 sm:w-24 sm:p-2">
+              <img src={sanadLogoPhoto} alt="شعار سند" className="h-full w-full scale-[1.18] object-contain" />
+            </div>
+          </div>
+          <div className="mt-4 font-mono text-[10px] uppercase tracking-[0.32em] text-white/70 sm:tracking-[0.55em] sm:text-[11px]">
+            S · A · N · A · D — سَنَد
+          </div>
+        </div>
+
+        <div className="fade-soft mt-6 flex flex-wrap items-center justify-center gap-2 text-[10px] uppercase tracking-[0.24em] text-white/70 sm:tracking-[0.32em]">
           <span className="live-dot h-1.5 w-1.5 rounded-full bg-clay" />
           تبرّع عبر Whish — أو تواصل للقنوات الأخرى
         </div>

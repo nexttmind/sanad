@@ -266,6 +266,7 @@ function PublicSettingsPage() {
           <Field label="هاتف التذييل" value={config.contact.footer_phone} onChange={(v) => updateContact("footer_phone", v)} ltr />
           <Field label="البريد" value={config.contact.footer_email} onChange={(v) => updateContact("footer_email", v)} ltr />
           <Field label="الموقع" value={config.contact.footer_location} onChange={(v) => updateContact("footer_location", v)} />
+          <Field label="رابط Instagram" value={config.contact.instagram_url} onChange={(v) => updateContact("instagram_url", v)} ltr />
         </div>
       )}
 

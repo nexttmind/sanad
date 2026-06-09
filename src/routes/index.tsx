@@ -466,16 +466,15 @@ function RequestHome() {
           <div className="absolute inset-0 grain" />
         </div>
 
-        {/* logo mark — top corner of hero (RTL: visually top-right) */}
-        <div className="pointer-events-none absolute end-4 top-[max(5.5rem,calc(env(safe-area-inset-top)+4.5rem))] z-10 sm:end-6 lg:end-10">
-          <div className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-white/40 bg-white/95 p-1.5 shadow-lg sm:h-16 sm:w-16">
-            <img src={sanadLogoPhoto} alt="شعار حملة سند" className="h-full w-full scale-[1.15] object-contain" />
-          </div>
-        </div>
-
         <div className="relative mx-auto max-w-6xl px-4 public-nav-offset pb-14 sm:px-6 sm:pb-20 lg:px-10">
           <div className="fade-soft flex flex-col items-center text-center">
-            <div className="font-mono text-[10px] uppercase tracking-[0.32em] text-white/70 sm:tracking-[0.55em] sm:text-[11px]">
+            <div className="relative">
+              <div className="absolute inset-0 -m-3 rounded-full bg-primary/25 blur-2xl" />
+              <div className="relative flex h-[5.25rem] w-[5.25rem] items-center justify-center overflow-hidden rounded-full border border-white/40 bg-white/95 p-1.5 shadow-lg sm:h-24 sm:w-24 sm:p-2">
+                <img src={sanadLogoPhoto} alt="شعار حملة سند" className="h-full w-full scale-[1.18] object-contain" />
+              </div>
+            </div>
+            <div className="mt-4 font-mono text-[10px] uppercase tracking-[0.32em] text-white/70 sm:tracking-[0.55em] sm:text-[11px]">
               S · A · N · A · D — سَنَد
             </div>
 

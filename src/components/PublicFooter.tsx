@@ -37,6 +37,17 @@ export function PublicFooter() {
             <li>هاتف: <span dir="ltr" className="break-all">{config.contact.footer_phone}</span></li>
             <li>بريد: <span className="break-all">{config.contact.footer_email}</span></li>
             <li>{config.contact.footer_location}</li>
+            <li>
+              <a
+                href={config.contact.instagram_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 hover:text-foreground"
+              >
+                Instagram
+                <span dir="ltr" className="font-mono text-[12px]">@hsaleh94</span>
+              </a>
+            </li>
           </ul>
         </div>
       </div>

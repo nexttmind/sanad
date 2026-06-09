@@ -36,6 +36,7 @@ export type PublicSiteConfig = {
     footer_phone: string;
     footer_email: string;
     footer_location: string;
+    instagram_url: string;
   };
 };
 
@@ -115,6 +116,7 @@ export const DEFAULT_PUBLIC_SITE_CONFIG: PublicSiteConfig = {
     footer_phone: "+961 70 000 000",
     footer_email: "hello@sanad.lb",
     footer_location: "صور — الجنوب اللبناني",
+    instagram_url: "https://www.instagram.com/hsaleh94/?hl=en",
   },
 };
 
@@ -216,6 +218,7 @@ export function mergePublicSiteConfig(raw: unknown): PublicSiteConfig {
       footer_phone: asString(contact.footer_phone, base.contact.footer_phone),
       footer_email: asString(contact.footer_email, base.contact.footer_email),
       footer_location: asString(contact.footer_location, base.contact.footer_location),
+      instagram_url: asString(contact.instagram_url, base.contact.instagram_url),
     },
   };
 }
