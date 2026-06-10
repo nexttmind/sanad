@@ -244,7 +244,9 @@ export function EditableRequestSections({ request, requestId, actorName, onSaved
             }
           />
         )}
-        <Row label="الهوية الوطنية" value={request.national_id ?? "—"} />
+        {request.national_id && (
+          <Row label="الهوية الوطنية (سجل قديم)" value={request.national_id} />
+        )}
       </SectionCard>
 
       <SectionCard

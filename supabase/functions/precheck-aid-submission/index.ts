@@ -1,39 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 // --- inlined aid-validation (Dashboard deploy = single file only) ---
-type DocumentType = "lebanese_id" | "passport";
-
-function normalizeNationalId(raw: string | null | undefined): string | null {
-  if (!raw || !String(raw).trim()) return null;
-  return String(raw).trim().replace(/[\s-]/g, "").toUpperCase();
-}
-
-function validateDocumentNumberFormat(
-  documentType: DocumentType | string | null | undefined,
-  raw: string | null | undefined,
-): boolean {
-  if (!documentType || !raw || !String(raw).trim()) return false;
-  if (documentType === "lebanese_id") {
-    const digits = String(raw).replace(/\D/g, "");
-    return /^\d{7,8}$/.test(digits);
-  }
-  if (documentType === "passport") {
-    const normalized = normalizeNationalId(raw);
-    return normalized != null && /^[A-Z]{2}\d{7}$/.test(normalized);
-  }
-  return false;
-}
-
 function isLebanesePhone(v: string): boolean {
   const s = v.replace(/[\s-]/g, "");
   return /^(?:\+?961|0)?(3|70|71|76|78|79|81)\d{6}$/.test(s);
 }
-
-const VALIDATION_MESSAGES = {
-  invalidLebaneseId: "رقم الهوية يجب أن يكون ٧ أو ٨ أرقام.",
-  invalidPassport: "رقم الجواز يجب أن يكون حرفين متبوعين بـ ٧ أرقام (مثال: RL1234567).",
-  invalidDocumentType: "يرجى اختيار نوع الوثيقة: بطاقة هوية لبنانية أو جواز سفر.",
-} as const;
 
 const DEFAULT_ALLOWED = [
   "http://localhost:5173",
@@ -118,8 +89,6 @@ function jsonWithCors(
 
 type RequestBody = {
   phone?: string;
-  national_id?: string;
-  document_type?: string;
 };
 
 type EligibilityRow = {
@@ -223,33 +192,8 @@ Deno.serve(async (req) => {
       }, 429);
     }
 
-    const nationalId = body.national_id?.trim();
-    const documentType = body.document_type as DocumentType | undefined;
-
-    if (nationalId && documentType) {
-      if (documentType !== "lebanese_id" && documentType !== "passport") {
-        return jsonWithCors(req, {
-          ok: true,
-          allowed: false,
-          reason: "invalid_document_type",
-          message: VALIDATION_MESSAGES.invalidDocumentType,
-        }, 200);
-      }
-      if (!validateDocumentNumberFormat(documentType, nationalId)) {
-        return jsonWithCors(req, {
-          ok: true,
-          allowed: false,
-          reason: "invalid_national_id",
-          message: documentType === "passport"
-            ? VALIDATION_MESSAGES.invalidPassport
-            : VALIDATION_MESSAGES.invalidLebaneseId,
-        }, 200);
-      }
-    }
-
     const { data, error } = await admin.rpc("check_submission_eligibility", {
       _phone: phoneRaw,
-      _national_id: nationalId && documentType ? nationalId : null,
     });
 
     if (error) {

@@ -410,7 +410,7 @@ function Detail() {
             )}
           </Card>
 
-          {user && (
+          {user && files.length > 0 && (
             <DocumentsSection
               requestId={id}
               referenceCode={s.reference_code}

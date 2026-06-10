@@ -16,13 +16,12 @@ describe("precheck-aid-submission supabase flows", () => {
       error: null,
     });
 
-    const result = await precheckAidSubmission({
-      phone: "70123456",
-      national_id: "12345678",
-      document_type: "lebanese_id",
-    });
+    const result = await precheckAidSubmission({ phone: "70123456" });
 
     expect(result).toEqual({ ok: true, allowed: true });
+    expect(supabase.functions.invoke).toHaveBeenCalledWith("precheck-aid-submission", {
+      body: { phone: "70123456" },
+    });
   });
 
   it("precheckAidSubmission omits reference_code on duplicate block", async () => {
@@ -36,11 +35,7 @@ describe("precheck-aid-submission supabase flows", () => {
       error: null,
     });
 
-    const result = await precheckAidSubmission({
-      phone: "70123456",
-      national_id: "12345678",
-      document_type: "lebanese_id",
-    });
+    const result = await precheckAidSubmission({ phone: "70123456" });
 
     expect(result).toEqual({
       ok: true,

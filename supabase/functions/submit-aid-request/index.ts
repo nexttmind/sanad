@@ -1,46 +1,15 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 // --- inlined aid-validation (Dashboard deploy = single file only) ---
-type DocumentType = "lebanese_id" | "passport";
-
-function normalizeNationalId(raw: string | null | undefined): string | null {
-  if (!raw || !String(raw).trim()) return null;
-  return String(raw).trim().replace(/[\s-]/g, "").toUpperCase();
-}
-
-function validateDocumentNumberFormat(
-  documentType: DocumentType | string | null | undefined,
-  raw: string | null | undefined,
-): boolean {
-  if (!documentType || !raw || !String(raw).trim()) return false;
-  if (documentType === "lebanese_id") {
-    const digits = String(raw).replace(/\D/g, "");
-    return /^\d{7,8}$/.test(digits);
-  }
-  if (documentType === "passport") {
-    const normalized = normalizeNationalId(raw);
-    return normalized != null && /^[A-Z]{2}\d{7}$/.test(normalized);
-  }
-  return false;
-}
-
 function isLebanesePhone(v: string): boolean {
   const s = v.replace(/[\s-]/g, "");
   return /^(?:\+?961|0)?(3|70|71|76|78|79|81)\d{6}$/.test(s);
 }
 
-const VALIDATION_MESSAGES = {
-  invalidLebaneseId: "رقم الهوية يجب أن يكون ٧ أو ٨ أرقام.",
-  invalidPassport: "رقم الجواز يجب أن يكون حرفين متبوعين بـ ٧ أرقام (مثال: RL1234567).",
-  invalidDocumentType: "يرجى اختيار نوع الوثيقة: بطاقة هوية لبنانية أو جواز سفر.",
-} as const;
-
 type AidRequestServerBody = {
   full_name?: string;
   phone?: string;
   alt_phone?: string | null;
-  national_id?: string | null;
-  document_type?: string | null;
   needs?: string[];
   family_size?: number;
 };
@@ -56,17 +25,6 @@ function validateAidRequestServerBody(body: AidRequestServerBody): Record<string
 
   if (body.alt_phone?.trim() && !isLebanesePhone(body.alt_phone)) {
     errors.alt_phone = "يرجى التحقق من صيغة الرقم الثانوي";
-  }
-
-  const docType = body.document_type as DocumentType | null;
-  if (!docType || (docType !== "lebanese_id" && docType !== "passport")) {
-    errors.document_type = VALIDATION_MESSAGES.invalidDocumentType;
-  } else if (!body.national_id?.trim()) {
-    errors.national_id = "يرجى إدخال رقم الوثيقة";
-  } else if (!validateDocumentNumberFormat(docType, body.national_id)) {
-    errors.national_id = docType === "passport"
-      ? VALIDATION_MESSAGES.invalidPassport
-      : VALIDATION_MESSAGES.invalidLebaneseId;
   }
 
   if (!Array.isArray(body.needs) || body.needs.length === 0) {
@@ -204,8 +162,6 @@ const REASON_MESSAGES: Record<string, string> = {
     "نعتذر — وصلنا إلى الحد اليومي لاستقبال الطلبات (٥٠ طلباً). سنعود لاستقبال طلبات جديدة غداً. إذا قدّمت طلباً سابقاً، يمكنك متابعته من صفحة التتبّع.",
   phone_already_submitted:
     "سبق أن قدّمت طلباً من هذا الرقم. يُسمح بطلب واحد فقط لكل رقم هاتف.",
-  id_already_submitted:
-    "سبق أن قُدّم طلب بهذه الوثيقة. يُسمح بطلب واحد فقط لكل رقم وثيقة.",
 };
 
 const SUBMIT_IP_LIMIT = 20;
@@ -278,7 +234,6 @@ Deno.serve(async (req) => {
 
     const admin = createClient(supabaseUrl, serviceKey);
     const phoneRaw = body.phone!.trim();
-    const nationalId = body.national_id!.trim();
     const ipHash = hashIdentifier(req.headers.get("x-forwarded-for") ?? "unknown");
 
     const rateBlocked = await assertSubmitRateLimits(admin, ipHash, phoneRaw);
@@ -292,7 +247,7 @@ Deno.serve(async (req) => {
 
     const { data: eligibility, error: eligibilityError } = await admin.rpc(
       "check_submission_eligibility",
-      { _phone: phoneRaw, _national_id: nationalId },
+      { _phone: phoneRaw },
     );
 
     if (eligibilityError) {
@@ -319,8 +274,8 @@ Deno.serve(async (req) => {
         full_name: body.full_name!.trim(),
         phone: phoneRaw,
         alt_phone: body.alt_phone?.trim() || null,
-        national_id: nationalId,
-        document_type: body.document_type,
+        national_id: null,
+        document_type: null,
         governorate: body.governorate?.trim() || null,
         district: body.district?.trim() || null,
         town: body.town?.trim() || null,
@@ -365,13 +320,6 @@ Deno.serve(async (req) => {
             ok: false,
             reason: "phone_already_submitted",
             message: REASON_MESSAGES.phone_already_submitted,
-          }, 409);
-        }
-        if (constraint.includes("national_id_normalized")) {
-          return jsonWithCors(req, {
-            ok: false,
-            reason: "id_already_submitted",
-            message: REASON_MESSAGES.id_already_submitted,
           }, 409);
         }
       }

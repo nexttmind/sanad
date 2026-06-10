@@ -8,8 +8,6 @@ import { submitAidRequest } from "@/lib/submit-aid-request";
 const basePayload = {
   full_name: "Ali Hassan",
   phone: "70123456",
-  national_id: "12345678",
-  document_type: "lebanese_id" as const,
   family_size: 4,
   infants: 0,
   children: 2,
@@ -49,7 +47,6 @@ describe("submit-aid-request supabase flows", () => {
       body: expect.objectContaining({
         full_name: "Ali Hassan",
         phone: "70123456",
-        document_type: "lebanese_id",
       }),
     });
   });

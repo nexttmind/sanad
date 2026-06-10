@@ -1,54 +1,14 @@
-/** Deno mirror of src/lib/phone-normalize.ts + aid-request-validation server rules */
-
-export function normalizeLebanesePhone(raw: string | null | undefined): string | null {
-  if (!raw || !String(raw).trim()) return null;
-  const digits = String(raw).replace(/\D/g, "");
-  if (!digits) return null;
-  if (digits.startsWith("961")) return digits;
-  if (digits.startsWith("0")) return `961${digits.slice(1)}`;
-  return `961${digits}`;
-}
-
-export function normalizeNationalId(raw: string | null | undefined): string | null {
-  if (!raw || !String(raw).trim()) return null;
-  return String(raw).trim().replace(/[\s-]/g, "").toUpperCase();
-}
-
-export type DocumentType = "lebanese_id" | "passport";
-
-export function validateDocumentNumberFormat(
-  documentType: DocumentType | string | null | undefined,
-  raw: string | null | undefined,
-): boolean {
-  if (!documentType || !raw || !String(raw).trim()) return false;
-  if (documentType === "lebanese_id") {
-    const digits = String(raw).replace(/\D/g, "");
-    return /^\d{7,8}$/.test(digits);
-  }
-  if (documentType === "passport") {
-    const normalized = normalizeNationalId(raw);
-    return normalized != null && /^[A-Z]{2}\d{7}$/.test(normalized);
-  }
-  return false;
-}
+/** Deno mirror of src/lib/aid-request-validation server rules */
 
 export function isLebanesePhone(v: string): boolean {
   const s = v.replace(/[\s-]/g, "");
   return /^(?:\+?961|0)?(3|70|71|76|78|79|81)\d{6}$/.test(s);
 }
 
-export const VALIDATION_MESSAGES = {
-  invalidLebaneseId: "رقم الهوية يجب أن يكون ٧ أو ٨ أرقام.",
-  invalidPassport: "رقم الجواز يجب أن يكون حرفين متبوعين بـ ٧ أرقام (مثال: RL1234567).",
-  invalidDocumentType: "يرجى اختيار نوع الوثيقة: بطاقة هوية لبنانية أو جواز سفر.",
-} as const;
-
 export type AidRequestServerBody = {
   full_name?: string;
   phone?: string;
   alt_phone?: string | null;
-  national_id?: string | null;
-  document_type?: string | null;
   needs?: string[];
   family_size?: number;
 };
@@ -64,17 +24,6 @@ export function validateAidRequestServerBody(body: AidRequestServerBody): Record
 
   if (body.alt_phone?.trim() && !isLebanesePhone(body.alt_phone)) {
     errors.alt_phone = "يرجى التحقق من صيغة الرقم الثانوي";
-  }
-
-  const docType = body.document_type as DocumentType | null;
-  if (!docType || (docType !== "lebanese_id" && docType !== "passport")) {
-    errors.document_type = VALIDATION_MESSAGES.invalidDocumentType;
-  } else if (!body.national_id?.trim()) {
-    errors.national_id = "يرجى إدخال رقم الوثيقة";
-  } else if (!validateDocumentNumberFormat(docType, body.national_id)) {
-    errors.national_id = docType === "passport"
-      ? VALIDATION_MESSAGES.invalidPassport
-      : VALIDATION_MESSAGES.invalidLebaneseId;
   }
 
   if (!Array.isArray(body.needs) || body.needs.length === 0) {

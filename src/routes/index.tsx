@@ -6,16 +6,11 @@ import { PublicQrCard } from "@/components/PublicQrCard";
 import { usePublicSiteConfig } from "@/lib/use-public-site-config";
 import { insertSubmissionReference } from "@/lib/submission-reference";
 import { submitAidRequest } from "@/lib/submit-aid-request";
-import { uploadIdDocument } from "@/lib/upload-id-doc";
 import { getDeviceFingerprint } from "@/lib/device-fingerprint";
 import { aidRequestHeroPhoto, sanadLogoPhoto } from "@/lib/donate-photos";
-import { precheckAidSubmission, type PrecheckReason } from "@/lib/precheck-aid-submission";
+import { precheckAidSubmission } from "@/lib/precheck-aid-submission";
 import { validateAidRequestForm } from "@/lib/aid-request-validation";
-import {
-  DOC_TYPE_LABELS,
-  documentTypeFromLabel,
-  isLebanesePhone,
-} from "@/lib/phone-normalize";
+import { isLebanesePhone } from "@/lib/phone-normalize";
 import { DuplicateSubmissionAlert } from "@/components/DuplicateSubmissionAlert";
 
 export const Route = createFileRoute("/")({
@@ -33,15 +28,13 @@ const REGIONS = ["قضاء صور", "قضاء بنت جبيل", "قضاء مرج
 const SHELTERS = ["مدرسة", "مأوى جماعي", "عند أهل أو أصدقاء", "منزل مستأجر", "أخرى"];
 const NEEDS = [
   "طعام", "ملابس", "أدوية", "وسائد وفرش", "حفاضات", "حليب أطفال",
-  "مروحة", "غاز", "مساعدة مالية", "مواد نظافة", "أغطية وبطانيات", "أخرى",
+  "مروحة", "غاز", "مواد نظافة", "أغطية وبطانيات", "أخرى",
 ];
 const REF_TYPES = ["مختار", "شيخ البلد", "رجل دين", "مسؤول بلدية", "طبيب معروف", "معلم أو مدير مدرسة", "مسؤول جمعية", "أخرى"];
 const KNOWN = ["أقل من سنة", "١–٥ سنوات", "أكثر من ٥ سنوات", "طوال عمري"];
-const DOC_TYPES = [DOC_TYPE_LABELS.lebanese_id, DOC_TYPE_LABELS.passport];
 const DIAPER_SIZES = ["NB", "١", "٢", "٣", "٤", "٥", "٦"];
 const MILK_BRANDS = ["Aptamil", "NAN", "Similac", "Enfamil", "أي ماركة متوفرة"];
 const MILK_STAGES = ["Stage 1 (٠–٦ أشهر)", "Stage 2 (٦–١٢ شهر)", "Stage 3 (١٢–٢٤ شهر)"];
-const FIN_PURPOSE = ["إيجار مؤقت", "مصاريف طبية", "مستلزمات أساسية", "مصاريف تعليم", "أخرى"];
 
 /* ----------------------------- validation helpers ----------------------------- */
 function monthsAgo(d: string) {
@@ -224,17 +217,12 @@ function RequestHome() {
   const [diaperSize, setDiaperSize] = useState(""); const [infantAge, setInfantAge] = useState("");
   const [milkBrand, setMilkBrand] = useState(""); const [milkStage, setMilkStage] = useState(""); const [milkAge, setMilkAge] = useState("");
   const [meds, setMeds] = useState(""); const [hasPrescription, setHasPrescription] = useState(false); const [critical, setCritical] = useState(false);
-  const [finPurpose, setFinPurpose] = useState("");
   const [clothesDesc, setClothesDesc] = useState(""); const [otherDesc, setOtherDesc] = useState("");
   const [notes, setNotes] = useState("");
   const [refType, setRefType] = useState(""); const [refName, setRefName] = useState(""); const [refPhone, setRefPhone] = useState("");
   const [refRegion, setRefRegion] = useState(""); const [refVillage, setRefVillage] = useState(""); const [refKnown, setRefKnown] = useState(""); const [refNotes, setRefNotes] = useState("");
-  const [docType, setDocType] = useState(""); const [docNumber, setDocNumber] = useState(""); const [docExpiry, setDocExpiry] = useState("");
-  const [docFile, setDocFile] = useState<File | null>(null); const [docPreview, setDocPreview] = useState<string | null>(null);
-  const [docError, setDocError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [precheckBlocked, setPrecheckBlocked] = useState<{
-    reason: Extract<PrecheckReason, "phone_already_submitted" | "id_already_submitted">;
     message: string;
     reference_code?: string | null;
   } | null>(null);
@@ -249,8 +237,6 @@ function RequestHome() {
   const showSchoolName = shelter === "مدرسة" || shelter === "مأوى جماعي";
   const toggleNeed = (n: string) => setNeeds((arr) => arr.includes(n) ? arr.filter((x) => x !== n) : [...arr, n]);
   const hasNeed = (n: string) => needs.includes(n);
-  const documentType = documentTypeFromLabel(docType);
-
   useEffect(() => {
     if (!phone.trim() || !isLebanesePhone(phone)) {
       setPrecheckBlocked(null);
@@ -258,24 +244,12 @@ function RequestHome() {
       return;
     }
 
-    const docReady = Boolean(documentType && docNumber.trim());
     const timer = window.setTimeout(() => {
-      void precheckAidSubmission({
-        phone: phone.trim(),
-        ...(docReady
-          ? { national_id: docNumber.trim(), document_type: documentType ?? undefined }
-          : {}),
-      }).then((result) => {
+      void precheckAidSubmission({ phone: phone.trim() }).then((result) => {
         if (!result.ok) return;
         if (!result.allowed) {
-          if (
-            result.reason === "phone_already_submitted" ||
-            result.reason === "id_already_submitted"
-          ) {
-            setPrecheckBlocked({
-              reason: result.reason,
-              message: result.message,
-            });
+          if (result.reason === "phone_already_submitted") {
+            setPrecheckBlocked({ message: result.message });
             setSubmitBlocked(true);
           } else {
             setPrecheckBlocked(null);
@@ -286,25 +260,10 @@ function RequestHome() {
         setPrecheckBlocked(null);
         setSubmitBlocked(false);
       });
-    }, docReady ? 400 : 600);
+    }, 500);
 
     return () => window.clearTimeout(timer);
-  }, [phone, docNumber, documentType, docType]);
-
-  // -------- file handling
-  const onFile = (f: File | null) => {
-    setDocError(null);
-    if (!f) { setDocFile(null); setDocPreview(null); return; }
-    if (f.size > 5 * 1024 * 1024) { setDocError("يرجى التحقق — حجم الملف يجب ألا يتجاوز ٥ ميغابايت"); return; }
-    const okType = ["image/jpeg", "image/png", "application/pdf"].includes(f.type);
-    if (!okType) { setDocError("يرجى التحقق — الملفات المقبولة هي JPG أو PNG أو PDF فقط"); return; }
-    setDocFile(f); setDocPreview(null);
-    if (f.type.startsWith("image/")) {
-      const r = new FileReader();
-      r.onload = () => setDocPreview(r.result as string);
-      r.readAsDataURL(f);
-    }
-  };
+  }, [phone]);
 
   // -------- validation (computed)
   const errors = validateAidRequestForm({
@@ -312,9 +271,8 @@ function RequestHome() {
     hasElderly, elderlyN, hasDisabled, disabledDesc, hasChronic, chronicDesc,
     critical, pregnantOrNursing, displaced, origin, originVillage, currentLoc,
     shelter, shelterName, showSchoolName, dispDate, needs, hasNeed,
-    diaperSize, infantAge, milkBrand, milkStage, milkAge, meds, finPurpose,
+    diaperSize, infantAge, milkBrand, milkStage, milkAge, meds,
     clothesDesc, otherDesc, refType, refName, refPhone, refRegion, refKnown,
-    docTypeLabel: docType, docNumber, docFile,
   });
 
   const isValid = Object.keys(errors).length === 0;
@@ -352,7 +310,6 @@ function RequestHome() {
         hasNeed("حفاضات") && diaperSize ? `حفاضات:${diaperSize}` : null,
         hasNeed("حليب أطفال") && milkBrand ? `حليب:${milkBrand}/${milkStage}` : null,
         hasNeed("أدوية") && meds ? `أدوية:${meds.slice(0, 120)}` : null,
-        hasNeed("مساعدة مالية") && finPurpose ? `مالية:${finPurpose}` : null,
         hasNeed("ملابس") && clothesDesc ? `ملابس:${clothesDesc.slice(0, 120)}` : null,
         hasNeed("أخرى") && otherDesc ? `أخرى:${otherDesc.slice(0, 200)}` : null,
       ].filter(Boolean) as string[];
@@ -363,8 +320,6 @@ function RequestHome() {
         full_name: fullName,
         phone: phone.trim(),
         alt_phone: phone2.trim() || null,
-        national_id: docNumber.trim(),
-        document_type: documentType!,
         governorate: origin || null,
         district: refRegion || null,
         town: originVillage || currentLoc || null,
@@ -396,12 +351,8 @@ function RequestHome() {
 
       const submitResult = await submitAidRequest(payload);
       if (!submitResult.ok) {
-        if (
-          submitResult.reason === "phone_already_submitted" ||
-          submitResult.reason === "id_already_submitted"
-        ) {
+        if (submitResult.reason === "phone_already_submitted") {
           setPrecheckBlocked({
-            reason: submitResult.reason,
             message: submitResult.message,
             reference_code: submitResult.reference_code,
           });
@@ -427,11 +378,6 @@ function RequestHome() {
         if (import.meta.env.DEV) console.error("[RequestSubmit] reference insert:", err);
       });
 
-      if (docFile) {
-        void uploadIdDocument(data.id, docFile).catch((err) => {
-          if (import.meta.env.DEV) console.error("[RequestSubmit] id doc upload:", err);
-        });
-      }
     } catch (err) {
       if (import.meta.env.DEV) console.error(err);
       setSubmitError("تعذّر إرسال الطلب — يرجى المحاولة مرة أخرى أو التواصل معنا مباشرة.");
@@ -510,7 +456,7 @@ function RequestHome() {
       >
         {/* 1 — PERSONAL */}
         <section>
-          <SectionTitle id="sec-personal" n="٠١" title="المعلومات الشخصية" />
+          <SectionTitle id="sec-personal" n="٠١" title="المعلومات الشخصية" sub="الاسم الثلاثي كما يظهر في الهوية أو الجواز" />
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div data-err="first">
               <Field label="الاسم الأول" required error={show("first") ? errors.first : null}>
@@ -535,7 +481,6 @@ function RequestHome() {
               {precheckBlocked && (
                 <div className="mt-3">
                   <DuplicateSubmissionAlert
-                    reason={precheckBlocked.reason}
                     message={precheckBlocked.message}
                     referenceCode={precheckBlocked.reference_code}
                   />
@@ -733,19 +678,6 @@ function RequestHome() {
             </div>
           )}
 
-          {hasNeed("مساعدة مالية") && (
-            <div className="mt-4 rounded-xl border border-border bg-surface p-4 sm:p-5">
-              <div data-err="finPurpose">
-                <Field label="الغرض من المساعدة المالية" required error={show("finPurpose") ? errors.finPurpose : null}>
-                  <select className={cls(!!(show("finPurpose") && errors.finPurpose))} value={finPurpose} onChange={(e) => setFinPurpose(e.target.value)} onBlur={touch("finPurpose")}>
-                    <option value="">اختر الغرض</option>
-                    {FIN_PURPOSE.map((s) => <option key={s}>{s}</option>)}
-                  </select>
-                </Field>
-              </div>
-            </div>
-          )}
-
           {hasNeed("ملابس") && (
             <div className="mt-4 rounded-xl border border-border bg-surface p-4 sm:p-5">
               <div data-err="clothesDesc">
@@ -823,81 +755,9 @@ function RequestHome() {
           </div>
         </section>
 
-        {/* 6 — DOCUMENT */}
+        {/* 6 — REVIEW */}
         <section>
-          <SectionTitle id="sec-doc" n="٠٦" title="وثيقة الهوية" sub="بياناتك محميّة ومشفّرة ولن تُشارَك مع أي جهة خارجية." />
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div data-err="docType">
-              <Field label="نوع الوثيقة" required error={show("docType") ? errors.docType : null}>
-                <select className={cls(!!(show("docType") && errors.docType))} value={docType} onChange={(e) => setDocType(e.target.value)} onBlur={touch("docType")}>
-                  <option value="">اختر</option>{DOC_TYPES.map((r) => <option key={r}>{r}</option>)}
-                </select>
-              </Field>
-            </div>
-            <div data-err="docNumber">
-              <Field
-                label="رقم الوثيقة"
-                required
-                hint={
-                  documentType === "lebanese_id"
-                    ? "7–8 أرقام"
-                    : documentType === "passport"
-                      ? "حرفان + 7 أرقام، مثال: RL1234567"
-                      : undefined
-                }
-                error={show("docNumber") ? errors.docNumber : null}
-              >
-                <input
-                  dir="ltr"
-                  placeholder={
-                    documentType === "passport"
-                      ? "RL1234567"
-                      : documentType === "lebanese_id"
-                        ? "12345678"
-                        : "مثال: 12345678"
-                  }
-                  className={cls(!!(show("docNumber") && errors.docNumber))}
-                  value={docNumber}
-                  onChange={(e) => setDocNumber(e.target.value.toUpperCase())}
-                  onBlur={touch("docNumber")}
-                />
-              </Field>
-            </div>
-            <Field label="تاريخ انتهاء الوثيقة" hint="اختياري">
-              <input type="date" className={inputCls} value={docExpiry} onChange={(e) => setDocExpiry(e.target.value)} />
-            </Field>
-            <div />
-            <div className="md:col-span-2" data-err="docFile">
-              <Field label="رفع صورة الوثيقة" hint="JPG, PNG, PDF — حد أقصى ٥ ميغابايت" required error={(show("docFile") && errors.docFile) || docError}>
-                <label className="flex cursor-pointer items-center justify-center rounded-lg border border-dashed border-border bg-background px-4 py-7 text-[13px] text-muted-foreground hover:border-clay sm:py-8 sm:text-sm">
-                  <input type="file" accept="image/jpeg,image/png,application/pdf" className="hidden" onChange={(e) => { onFile(e.target.files?.[0] ?? null); touch("docFile")(); }} />
-                  {docFile ? (
-                    <span className="max-w-full truncate text-foreground">
-                      {docFile.name} — {(docFile.size / 1024).toFixed(0)} KB
-                    </span>
-                  ) : (
-                    "اضغط لاختيار ملف من جهازك"
-                  )}
-                </label>
-              </Field>
-              {docFile && !docError && (
-                <div className="mt-3 flex items-center gap-2 text-xs text-success">
-                  <span>✓ تم رفع الملف بنجاح</span>
-                  <button type="button" onClick={() => onFile(null)} className="text-muted-foreground underline hover:text-foreground">استبدال</button>
-                </div>
-              )}
-              {docPreview && (
-                <div className="mt-3 overflow-hidden rounded-md border border-border">
-                  <img src={docPreview} alt="معاينة الوثيقة" className="max-h-56 w-full object-contain bg-surface" />
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-
-        {/* 7 — REVIEW */}
-        <section>
-          <SectionTitle id="sec-review" n="٠٧" title="مراجعة وتأكيد" />
+          <SectionTitle id="sec-review" n="٠٦" title="مراجعة وتأكيد" />
           <div className="space-y-3 rounded-xl border border-border bg-surface p-5 text-[13px] sm:text-sm">
             {[
               { l: "المعلومات الشخصية", v: [first, father, family].filter(Boolean).join(" ") || "—", anchor: "sec-personal", phone },
@@ -905,7 +765,6 @@ function RequestHome() {
               { l: "النزوح", v: displaced ? `${origin || "—"} → ${currentLoc || "—"}${shelter ? ` (${shelter})` : ""}` : "غير نازح", anchor: "sec-disp" },
               { l: "الاحتياجات", v: needs.length ? needs.join("، ") : "—", anchor: "sec-needs" },
               { l: "المرجع", v: refName ? `${refName} (${refType})` : "—", anchor: "sec-ref" },
-              { l: "الوثيقة", v: docType || "—", anchor: "sec-doc" },
             ].map((r) => (
               <div key={r.l} className="flex items-start justify-between gap-3 border-b border-border/60 pb-3 last:border-0">
                 <div className="min-w-0">

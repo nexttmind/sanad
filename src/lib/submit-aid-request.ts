@@ -1,12 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { DocumentType } from "@/lib/phone-normalize";
 
 export type AidRequestSubmitPayload = {
   full_name: string;
   phone: string;
   alt_phone?: string | null;
-  national_id?: string | null;
-  document_type: DocumentType;
   governorate?: string | null;
   district?: string | null;
   town?: string | null;
@@ -32,7 +29,6 @@ export type AidRequestSubmitPayload = {
 
 export type SubmitBlockReason =
   | "phone_already_submitted"
-  | "id_already_submitted"
   | "daily_cap_reached";
 
 export type AidRequestSubmitResult =

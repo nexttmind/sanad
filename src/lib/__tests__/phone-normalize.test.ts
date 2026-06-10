@@ -5,8 +5,6 @@ import {
   validateDocumentNumberFormat,
   maskReferenceCode,
 } from "@/lib/phone-normalize";
-import { validateDocumentNumber } from "@/lib/aid-request-validation";
-
 describe("normalizeLebanesePhone", () => {
   it("normalizes local 03 prefix", () => {
     expect(normalizeLebanesePhone("03 123 456")).toBe("9613123456");
@@ -44,12 +42,6 @@ describe("validateDocumentNumberFormat", () => {
 
   it("rejects invalid passport", () => {
     expect(validateDocumentNumberFormat("passport", "R1234567")).toBe(false);
-  });
-});
-
-describe("validateDocumentNumber messages", () => {
-  it("returns Arabic error for invalid passport", () => {
-    expect(validateDocumentNumber("passport", "bad")).toMatch(/الجواز/);
   });
 });
 

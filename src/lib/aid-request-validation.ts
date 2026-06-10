@@ -1,9 +1,4 @@
-import {
-  type DocumentType,
-  documentTypeFromLabel,
-  isLebanesePhone,
-  validateDocumentNumberFormat,
-} from "@/lib/phone-normalize";
+import { isLebanesePhone } from "@/lib/phone-normalize";
 
 export type AidRequestFormInput = {
   first: string;
@@ -38,7 +33,6 @@ export type AidRequestFormInput = {
   milkStage: string;
   milkAge: string;
   meds: string;
-  finPurpose: string;
   clothesDesc: string;
   otherDesc: string;
   refType: string;
@@ -46,37 +40,12 @@ export type AidRequestFormInput = {
   refPhone: string;
   refRegion: string;
   refKnown: string;
-  docTypeLabel: string;
-  docNumber: string;
-  docFile: File | null;
-  /** Client-only — skip on server */
-  requireDocFile?: boolean;
 };
-
-export const VALIDATION_MESSAGES = {
-  invalidLebaneseId: "رقم الهوية يجب أن يكون ٧ أو ٨ أرقام.",
-  invalidPassport: "رقم الجواز يجب أن يكون حرفين متبوعين بـ ٧ أرقام (مثال: RL1234567).",
-  invalidDocumentType: "يرجى اختيار نوع الوثيقة: بطاقة هوية لبنانية أو جواز سفر.",
-} as const;
 
 function isPastOrToday(d: string): boolean {
   if (!d) return false;
   const t = new Date(d).getTime();
   return !Number.isNaN(t) && t <= Date.now();
-}
-
-export function validateDocumentNumber(
-  documentType: DocumentType | null,
-  raw: string,
-): string | null {
-  if (!documentType) return VALIDATION_MESSAGES.invalidDocumentType;
-  if (!raw.trim()) return "يرجى إدخال رقم الوثيقة";
-  if (!validateDocumentNumberFormat(documentType, raw)) {
-    return documentType === "passport"
-      ? VALIDATION_MESSAGES.invalidPassport
-      : VALIDATION_MESSAGES.invalidLebaneseId;
-  }
-  return null;
 }
 
 export function validateAidRequestForm(input: AidRequestFormInput): Record<string, string | null> {
@@ -142,9 +111,6 @@ export function validateAidRequestForm(input: AidRequestFormInput): Record<strin
   if (input.hasNeed("أدوية") && input.meds.trim().length < 3) {
     errors.meds = "يرجى ذكر اسم الدواء والجرعة";
   }
-  if (input.hasNeed("مساعدة مالية") && !input.finPurpose) {
-    errors.finPurpose = "يرجى اختيار الغرض";
-  }
   if (input.hasNeed("ملابس") && input.clothesDesc.trim().length < 5) {
     errors.clothesDesc = "يرجى توضيح المقاسات والأعمار";
   }
@@ -159,29 +125,14 @@ export function validateAidRequestForm(input: AidRequestFormInput): Record<strin
   if (!input.refRegion.trim()) errors.refRegion = "يرجى إدخال منطقة المرجع";
   if (!input.refKnown) errors.refKnown = "يرجى تحديد منذ متى تعرفه";
 
-  const documentType = documentTypeFromLabel(input.docTypeLabel);
-  if (!input.docTypeLabel.trim()) {
-    errors.docType = "يرجى اختيار نوع الوثيقة";
-  } else if (!documentType) {
-    errors.docType = VALIDATION_MESSAGES.invalidDocumentType;
-  }
-  const docNumberError = validateDocumentNumber(documentType, input.docNumber);
-  if (docNumberError) errors.docNumber = docNumberError;
-
-  if (input.requireDocFile !== false && !input.docFile) {
-    errors.docFile = "يرجى رفع صورة الوثيقة";
-  }
-
   return errors;
 }
 
-/** Server-side subset — no file upload check. */
+/** Server-side subset for edge function parity. */
 export type AidRequestServerBody = {
   full_name?: string;
   phone?: string;
   alt_phone?: string | null;
-  national_id?: string | null;
-  document_type?: string | null;
   governorate?: string | null;
   district?: string | null;
   town?: string | null;
@@ -214,14 +165,6 @@ export function validateAidRequestServerBody(body: AidRequestServerBody): Record
   if (body.alt_phone?.trim() && !isLebanesePhone(body.alt_phone)) {
     errors.alt_phone = "يرجى التحقق من صيغة الرقم الثانوي";
   }
-
-  const docType = body.document_type as DocumentType | null;
-  if (!docType || (docType !== "lebanese_id" && docType !== "passport")) {
-    errors.document_type = VALIDATION_MESSAGES.invalidDocumentType;
-  }
-
-  const docErr = validateDocumentNumber(docType, body.national_id ?? "");
-  if (docErr) errors.national_id = docErr;
 
   if (!Array.isArray(body.needs) || body.needs.length === 0) {
     errors.needs = "يرجى اختيار حاجة واحدة على الأقل";

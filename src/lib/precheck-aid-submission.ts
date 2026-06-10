@@ -1,13 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { DocumentType } from "@/lib/phone-normalize";
 
 export type PrecheckReason =
   | "daily_cap_reached"
   | "phone_already_submitted"
-  | "id_already_submitted"
-  | "invalid_phone"
-  | "invalid_national_id"
-  | "invalid_document_type";
+  | "invalid_phone";
 
 export type PrecheckResult =
   | { ok: true; allowed: true }
@@ -21,8 +17,6 @@ export type PrecheckResult =
 
 export async function precheckAidSubmission(params: {
   phone: string;
-  national_id?: string;
-  document_type?: DocumentType;
 }): Promise<PrecheckResult> {
   const { data, error } = await supabase.functions.invoke<{
     ok?: boolean;

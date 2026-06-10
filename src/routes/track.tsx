@@ -456,7 +456,6 @@ function FoundResult({
               </div>
               <Row label="نوع المرجع" value="مختار / شيخ بلد" />
               <Row label="منطقة المرجع" value={sub.region} />
-              <Row label="نوع الوثيقة" value="بطاقة الهوية اللبنانية" />
             </dl>
           </div>
         </div>

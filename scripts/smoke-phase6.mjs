@@ -1,5 +1,5 @@
 /**
- * Phase 6 production smoke — phone uniqueness + daily cap (no OTP).
+ * Phase 6 production smoke — phone uniqueness (no ID/passport on public form).
  * Creates temporary test rows, verifies rules, then deletes them.
  *
  * Usage: node scripts/smoke-phase6.mjs
@@ -53,9 +53,6 @@ const SMOKE = {
   phone1: "70999101",
   phone2: "70999102",
   phone3: "70999103",
-  id1: "99101010",
-  id2: "99102020",
-  passport3: "RL9910101",
 };
 
 let ok = 0;
@@ -110,12 +107,10 @@ async function edgePost(name, body, opts = {}) {
   return last;
 }
 
-function basePayload(phone, nationalId, documentType = "lebanese_id") {
+function basePayload(phone) {
   return {
     full_name: "Smoke Test User",
     phone,
-    national_id: nationalId,
-    document_type: documentType,
     family_size: 3,
     needs: ["طعام"],
     displaced: false,
@@ -138,12 +133,8 @@ async function cleanup() {
   }
 }
 
-async function precheck(phone, nationalId, documentType = "lebanese_id") {
-  return edgePost("precheck-aid-submission", {
-    phone,
-    national_id: nationalId,
-    document_type: documentType,
-  });
+async function precheck(phone) {
+  return edgePost("precheck-aid-submission", { phone });
 }
 
 async function submit(payload) {
@@ -154,7 +145,6 @@ console.log("SANAD Phase 6 smoke —", url.replace("https://", ""));
 console.log("Test phones:", SMOKE.phone1, SMOKE.phone2, SMOKE.phone3);
 console.log("");
 
-// --- 6.0 Rollout infra (reuse verify-rollout) ---
 const rollout = spawnSync(process.execPath, [resolve(root, "scripts/verify-rollout.mjs")], {
   cwd: root,
   encoding: "utf8",
@@ -164,43 +154,15 @@ else {
   failCheck("6.0 verify:rollout", rollout.stdout?.trim() || rollout.stderr?.trim());
 }
 
-// Brief pause so verify:rollout edge calls don't saturate workers before full submits.
 await new Promise((r) => setTimeout(r, 2000));
 
 try {
   await cleanup();
 
-  // --- 6.6b invalid Lebanese ID ---
-  {
-    const { status, body } = await submit({
-      ...basePayload(SMOKE.phone1, "123"),
-      national_id: "123",
-    });
-    if (status === 400 && body?.errors?.national_id) {
-      pass("6.6b invalid ID format → 400", body.errors.national_id);
-    } else {
-      failCheck("6.6b invalid ID format → 400", `${status} ${JSON.stringify(body)}`);
-    }
-  }
-
-  // --- 6.6c invalid passport ---
-  {
-    const { status, body } = await submit({
-      ...basePayload(SMOKE.phone1, "BADPASS", "passport"),
-      document_type: "passport",
-      national_id: "BADPASS",
-    });
-    if (status === 400 && body?.errors?.national_id) {
-      pass("6.6c invalid passport format → 400", body.errors.national_id);
-    } else {
-      failCheck("6.6c invalid passport format → 400", `${status} ${JSON.stringify(body)}`);
-    }
-  }
-
   // --- 6.4 first submit OK ---
   let ref1 = null;
   {
-    const { status, body } = await submit(basePayload(SMOKE.phone1, SMOKE.id1));
+    const { status, body } = await submit(basePayload(SMOKE.phone1));
     if (status === 200 && body?.ok === true && body.reference_code) {
       ref1 = body.reference_code;
       if (body.id) createdIds.push(body.id);
@@ -211,48 +173,30 @@ try {
   }
 
   if (!ref1) {
-    skipCheck("6.5–6.6 duplicate checks", "first submit did not succeed — re-run after workers recover");
+    skipCheck("6.5 duplicate phone checks", "first submit did not succeed — re-run after workers recover");
   } else {
     // --- 6.5 duplicate phone (different format) via precheck + submit ---
     {
       const altPhone = "+961 70 999 101";
-      const pre = await precheck(altPhone, "99109999");
+      const pre = await precheck(altPhone);
       if (pre.status === 200 && pre.body?.allowed === false && pre.body?.reason === "phone_already_submitted") {
         pass("6.5 precheck duplicate phone (alt format)", pre.body.reason);
       } else {
         failCheck("6.5 precheck duplicate phone", `${pre.status} ${JSON.stringify(pre.body)}`);
       }
 
-      const sub = await submit(basePayload(altPhone, "99109999"));
+      const sub = await submit(basePayload(altPhone));
       if (sub.status === 409 && sub.body?.reason === "phone_already_submitted") {
         pass("6.5 submit duplicate phone (alt format) → 409", sub.body.reason);
       } else {
         failCheck("6.5 submit duplicate phone", `${sub.status} ${JSON.stringify(sub.body)}`);
       }
     }
-
-    // --- 6.6 duplicate ID (spaces/dashes) ---
-    {
-      const spacedId = "9910-1010";
-      const pre = await precheck(SMOKE.phone2, spacedId);
-      if (pre.status === 200 && pre.body?.allowed === false && pre.body?.reason === "id_already_submitted") {
-        pass("6.6 precheck duplicate ID (spaced)", pre.body.reason);
-      } else {
-        failCheck("6.6 precheck duplicate ID", `${pre.status} ${JSON.stringify(pre.body)}`);
-      }
-
-      const sub = await submit(basePayload(SMOKE.phone2, spacedId));
-      if (sub.status === 409 && sub.body?.reason === "id_already_submitted") {
-        pass("6.6 submit duplicate ID (spaced) → 409", sub.body.reason);
-      } else {
-        failCheck("6.6 submit duplicate ID", `${sub.status} ${JSON.stringify(sub.body)}`);
-      }
-    }
   }
 
-  // --- 6.7 second distinct phone+ID ---
+  // --- 6.7 second distinct phone ---
   {
-    const { status, body } = await submit(basePayload(SMOKE.phone2, SMOKE.id2));
+    const { status, body } = await submit(basePayload(SMOKE.phone2));
     if (status === 200 && body?.ok === true) {
       if (body.id) createdIds.push(body.id);
       pass("6.7 second distinct submit OK", body.reference_code);
@@ -261,16 +205,14 @@ try {
     }
   }
 
-  // --- 6.7 third — passport ---
+  // --- 6.7 third distinct phone ---
   {
-    const { status, body } = await submit(
-      basePayload(SMOKE.phone3, SMOKE.passport3, "passport"),
-    );
+    const { status, body } = await submit(basePayload(SMOKE.phone3));
     if (status === 200 && body?.ok === true) {
       if (body.id) createdIds.push(body.id);
-      pass("6.7 third submit (passport) OK", body.reference_code);
+      pass("6.7 third distinct submit OK", body.reference_code);
     } else {
-      failCheck("6.7 third submit (passport)", `${status} ${JSON.stringify(body)}`);
+      failCheck("6.7 third distinct submit", `${status} ${JSON.stringify(body)}`);
     }
   }
 
@@ -289,7 +231,7 @@ try {
     skipCheck("6.8 track", "no reference from first submit");
   }
 
-  // --- 6.9 cap status (not simulating 50 rows) ---
+  // --- 6.9 cap status ---
   {
     const res = await fetch(`${url}/rest/v1/rpc/get_submission_status`, {
       method: "POST",
@@ -306,7 +248,6 @@ try {
     }
   }
 
-  // --- 6.3 frontend loads (optional) ---
   const siteUrl = (
     process.env.PLAYWRIGHT_BASE_URL ||
     process.env.NETLIFY_URL ||
