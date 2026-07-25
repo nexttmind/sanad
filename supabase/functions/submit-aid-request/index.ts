@@ -148,6 +148,7 @@ type RequestBody = AidRequestServerBody & {
   submission_seconds?: number | null;
   user_agent?: string | null;
   device_fingerprint?: string | null;
+  form_responses?: Record<string, unknown> | null;
 };
 
 type EligibilityRow = {
@@ -307,6 +308,9 @@ Deno.serve(async (req) => {
         user_agent: body.user_agent?.slice(0, 240) || null,
         device_fingerprint: body.device_fingerprint?.slice(0, 128) || null,
         ip_hash: ipHash,
+        form_responses: body.form_responses && typeof body.form_responses === "object"
+          ? body.form_responses
+          : {},
       })
       .select("id, reference_code")
       .single();

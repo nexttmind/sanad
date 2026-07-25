@@ -32,7 +32,6 @@ export type AidRequestFormInput = {
   milkBrand: string;
   milkStage: string;
   milkAge: string;
-  meds: string;
   clothesDesc: string;
   otherDesc: string;
   refType: string;
@@ -107,9 +106,6 @@ export function validateAidRequestForm(input: AidRequestFormInput): Record<strin
     if (!input.milkBrand) errors.milkBrand = "يرجى اختيار ماركة الحليب";
     if (!input.milkStage) errors.milkStage = "يرجى اختيار المرحلة";
     if (!input.milkAge) errors.milkAge = "يرجى إدخال عمر الرضيع";
-  }
-  if (input.hasNeed("أدوية") && input.meds.trim().length < 3) {
-    errors.meds = "يرجى ذكر اسم الدواء والجرعة";
   }
   if (input.hasNeed("ملابس") && input.clothesDesc.trim().length < 5) {
     errors.clothesDesc = "يرجى توضيح المقاسات والأعمار";

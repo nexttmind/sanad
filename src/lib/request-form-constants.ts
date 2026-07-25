@@ -19,7 +19,6 @@ export const SHELTER_OPTIONS = [
 export const NEED_OPTIONS = [
   "طعام",
   "ملابس",
-  "أدوية",
   "وسائد وفرش",
   "حفاضات",
   "حليب أطفال",

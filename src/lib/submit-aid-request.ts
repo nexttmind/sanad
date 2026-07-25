@@ -25,6 +25,7 @@ export type AidRequestSubmitPayload = {
   submission_seconds?: number | null;
   user_agent?: string | null;
   device_fingerprint?: string | null;
+  form_responses?: Record<string, unknown> | null;
 };
 
 export type SubmitBlockReason =

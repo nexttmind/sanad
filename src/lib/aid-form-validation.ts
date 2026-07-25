@@ -1,0 +1,194 @@
+import { isLebanesePhone } from "@/lib/phone-normalize";
+import {
+  allAidFormFields,
+  type AidFormField,
+  type AidFormSchema,
+  type AidFormVisibleWhen,
+} from "@/lib/aid-form-schema";
+
+export type AidFormValues = Record<string, unknown>;
+
+function str(v: unknown): string {
+  return typeof v === "string" ? v : v == null ? "" : String(v);
+}
+
+function bool(v: unknown): boolean {
+  return v === true;
+}
+
+function strArr(v: unknown): string[] {
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+}
+
+function isPastOrToday(d: string): boolean {
+  if (!d) return false;
+  const t = new Date(d).getTime();
+  return !Number.isNaN(t) && t <= Date.now();
+}
+
+function evalVisibleWhen(w: AidFormVisibleWhen, values: AidFormValues): boolean {
+  const v = values[w.field_id];
+  switch (w.op) {
+    case "truthy":
+      return !!v;
+    case "eq":
+      return v === w.value;
+    case "includes":
+      return Array.isArray(v) && v.includes(w.value);
+    default:
+      return false;
+  }
+}
+
+export function isAidFormFieldVisible(
+  field: AidFormField,
+  values: AidFormValues,
+  schema: AidFormSchema,
+): boolean {
+  if (field.parent_option) {
+    const needsField = allAidFormFields(schema).find((f) => f.binding === "needs");
+    const needs = needsField ? strArr(values[needsField.id]) : [];
+    if (!needs.includes(field.parent_option)) return false;
+  }
+  if (field.visible_when && !evalVisibleWhen(field.visible_when, values)) return false;
+  if (field.visible_when_any?.length && !field.visible_when_any.some((w) => evalVisibleWhen(w, values))) {
+    return false;
+  }
+  return true;
+}
+
+export function initAidFormValues(schema: AidFormSchema): AidFormValues {
+  const values: AidFormValues = {};
+  for (const field of allAidFormFields(schema)) {
+    if (field.type === "toggle" || field.type === "checkbox") values[field.id] = false;
+    else if (field.type === "multiselect") values[field.id] = [];
+    else values[field.id] = "";
+  }
+  return values;
+}
+
+export function validateAidFormValues(
+  schema: AidFormSchema,
+  values: AidFormValues,
+): Record<string, string | null> {
+  const errors: Record<string, string | null> = {};
+
+  for (const field of allAidFormFields(schema)) {
+    if (!isAidFormFieldVisible(field, values, schema)) continue;
+
+    const raw = values[field.id];
+
+    if (field.required) {
+      if (field.type === "checkbox" || field.type === "toggle") {
+        if (!bool(raw)) errors[field.id] = "هذا الحقل مطلوب";
+        continue;
+      }
+      if (field.type === "multiselect") {
+        if (strArr(raw).length === 0) errors[field.id] = "يرجى اختيار خيار واحد على الأقل";
+        continue;
+      }
+      if (!str(raw).trim()) {
+        errors[field.id] = "هذا الحقل مطلوب";
+        continue;
+      }
+    }
+
+    const text = str(raw).trim();
+    if (!text && field.type !== "multiselect") continue;
+
+    if (field.type === "tel" && text && !isLebanesePhone(text)) {
+      errors[field.id] =
+        field.binding === "ref_phone"
+          ? "يرجى التحقق من صيغة الرقم"
+          : "يرجى التحقق — رقم لبناني صحيح يبدأ بـ 03 أو 70 أو 71 أو 76 أو 78 أو 79 أو 81";
+    }
+
+    if (field.type === "number" && text) {
+      const n = Number(text);
+      if (Number.isNaN(n)) errors[field.id] = "يرجى إدخال رقماً صحيحاً";
+      else {
+        if (field.min != null && n < field.min) errors[field.id] = `الحد الأدنى ${field.min}`;
+        if (field.max != null && n > field.max) errors[field.id] = `الحد الأقصى ${field.max}`;
+      }
+    }
+
+    if (field.type === "textarea" && field.min_length && text.length < field.min_length) {
+      errors[field.id] = `يرجى إدخال ${field.min_length} أحرف على الأقل`;
+    }
+
+    if (field.type === "date" && text && !isPastOrToday(text)) {
+      errors[field.id] = "يرجى التحقق — التاريخ لا يمكن أن يكون في المستقبل";
+    }
+  }
+
+  const childrenField = allAidFormFields(schema).find((f) => f.binding === "children");
+  const infantsField = allAidFormFields(schema).find((f) => f.binding === "infants");
+  if (childrenField && infantsField) {
+    const u12 = Number(str(values[childrenField.id]));
+    const u2 = Number(str(values[infantsField.id]));
+    if (values[childrenField.id] !== "" && values[infantsField.id] !== "" && u2 > u12) {
+      errors[infantsField.id] = "يرجى التحقق — عدد الرضّع لا يمكن أن يتجاوز عدد الأطفال";
+    }
+  }
+
+  const needsField = allAidFormFields(schema).find((f) => f.binding === "needs");
+  if (needsField && isAidFormFieldVisible(needsField, values, schema)) {
+    const needs = strArr(values[needsField.id]);
+    if (needs.length >= 9) {
+      // soft warning only — handled in form UI
+    }
+  }
+
+  return errors;
+}
+
+export function getAidFormWarnings(schema: AidFormSchema, values: AidFormValues): string[] {
+  const warnings: string[] = [];
+  const dispField = allAidFormFields(schema).find((f) => f.binding === "displacement_date");
+  const displacedField = allAidFormFields(schema).find((f) => f.binding === "displaced");
+  const needsField = allAidFormFields(schema).find((f) => f.binding === "needs");
+  const infantsField = allAidFormFields(schema).find((f) => f.binding === "infants");
+
+  if (displacedField && bool(values[displacedField.id]) && dispField) {
+    const d = str(values[dispField.id]);
+    if (d) {
+      const t = new Date(d).getTime();
+      if (!Number.isNaN(t)) {
+        const months = (Date.now() - t) / (1000 * 60 * 60 * 24 * 30.44);
+        if (months > 6) {
+          warnings.push("مرّ أكثر من ٦ أشهر على تاريخ النزوح — يرجى التأكد من صحة التاريخ.");
+        }
+      }
+    }
+  }
+
+  if (needsField) {
+    const needs = strArr(values[needsField.id]);
+    if (needs.length >= 9) {
+      warnings.push("اخترت عدداً كبيراً من الاحتياجات — يرجى التأكد من أنها جميعاً ضرورية فعلاً.");
+    }
+  }
+
+  if (infantsField && needsField) {
+    const u2 = Number(str(values[infantsField.id]));
+    const needs = strArr(values[needsField.id]);
+    if (u2 > 0 && !needs.includes("حفاضات") && !needs.includes("حليب أطفال")) {
+      warnings.push("لديك رضّع في العائلة — هل تحتاج إلى حفاضات أو حليب أطفال؟");
+    }
+  }
+
+  return warnings;
+}
+
+export function findFieldByBinding(schema: AidFormSchema, binding: string): AidFormField | undefined {
+  return allAidFormFields(schema).find((f) => f.binding === binding);
+}
+
+export function valueByBinding(schema: AidFormSchema, values: AidFormValues, binding: string): unknown {
+  const field = findFieldByBinding(schema, binding);
+  return field ? values[field.id] : undefined;
+}
+
+export function phoneFieldId(schema: AidFormSchema): string | undefined {
+  return findFieldByBinding(schema, "phone")?.id;
+}

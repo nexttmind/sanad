@@ -22,6 +22,7 @@ const navItems: NavItem[] = [
   { to: "/admin/donations", label: "التبرّعات", badgeKey: "donations" },
   { to: "/admin/references", label: "قائمة المختارين" },
   { to: "/admin/distribution", label: "التوزيع" },
+  { to: "/admin/form-settings", label: "نموذج الطلب" },
   { to: "/admin/public-settings", label: "إعدادات الموقع", adminOnly: true },
   { to: "/admin/analytics", label: "التحليلات" },
   { to: "/admin/scoring", label: "قواعد العجلة", adminOnly: true },

@@ -21,6 +21,7 @@ import { Route as AdminScoringRouteImport } from './routes/admin.scoring'
 import { Route as AdminReferencesRouteImport } from './routes/admin.references'
 import { Route as AdminQueueRouteImport } from './routes/admin.queue'
 import { Route as AdminPublicSettingsRouteImport } from './routes/admin.public-settings'
+import { Route as AdminFormSettingsRouteImport } from './routes/admin.form-settings'
 import { Route as AdminDonationsRouteImport } from './routes/admin.donations'
 import { Route as AdminDistributionRouteImport } from './routes/admin.distribution'
 import { Route as AdminAuditRouteImport } from './routes/admin.audit'
@@ -88,6 +89,11 @@ const AdminPublicSettingsRoute = AdminPublicSettingsRouteImport.update({
   path: '/public-settings',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminFormSettingsRoute = AdminFormSettingsRouteImport.update({
+  id: '/form-settings',
+  path: '/form-settings',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminDonationsRoute = AdminDonationsRouteImport.update({
   id: '/donations',
   path: '/donations',
@@ -130,6 +136,7 @@ export interface FileRoutesByFullPath {
   '/admin/audit': typeof AdminAuditRoute
   '/admin/distribution': typeof AdminDistributionRoute
   '/admin/donations': typeof AdminDonationsRoute
+  '/admin/form-settings': typeof AdminFormSettingsRoute
   '/admin/public-settings': typeof AdminPublicSettingsRoute
   '/admin/queue': typeof AdminQueueRoute
   '/admin/references': typeof AdminReferencesRoute
@@ -149,6 +156,7 @@ export interface FileRoutesByTo {
   '/admin/audit': typeof AdminAuditRoute
   '/admin/distribution': typeof AdminDistributionRoute
   '/admin/donations': typeof AdminDonationsRoute
+  '/admin/form-settings': typeof AdminFormSettingsRoute
   '/admin/public-settings': typeof AdminPublicSettingsRoute
   '/admin/queue': typeof AdminQueueRoute
   '/admin/references': typeof AdminReferencesRoute
@@ -170,6 +178,7 @@ export interface FileRoutesById {
   '/admin/audit': typeof AdminAuditRoute
   '/admin/distribution': typeof AdminDistributionRoute
   '/admin/donations': typeof AdminDonationsRoute
+  '/admin/form-settings': typeof AdminFormSettingsRoute
   '/admin/public-settings': typeof AdminPublicSettingsRoute
   '/admin/queue': typeof AdminQueueRoute
   '/admin/references': typeof AdminReferencesRoute
@@ -192,6 +201,7 @@ export interface FileRouteTypes {
     | '/admin/audit'
     | '/admin/distribution'
     | '/admin/donations'
+    | '/admin/form-settings'
     | '/admin/public-settings'
     | '/admin/queue'
     | '/admin/references'
@@ -211,6 +221,7 @@ export interface FileRouteTypes {
     | '/admin/audit'
     | '/admin/distribution'
     | '/admin/donations'
+    | '/admin/form-settings'
     | '/admin/public-settings'
     | '/admin/queue'
     | '/admin/references'
@@ -231,6 +242,7 @@ export interface FileRouteTypes {
     | '/admin/audit'
     | '/admin/distribution'
     | '/admin/donations'
+    | '/admin/form-settings'
     | '/admin/public-settings'
     | '/admin/queue'
     | '/admin/references'
@@ -336,6 +348,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminPublicSettingsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/form-settings': {
+      id: '/admin/form-settings'
+      path: '/form-settings'
+      fullPath: '/admin/form-settings'
+      preLoaderRoute: typeof AdminFormSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/donations': {
       id: '/admin/donations'
       path: '/donations'
@@ -386,6 +405,7 @@ interface AdminRouteChildren {
   AdminAuditRoute: typeof AdminAuditRoute
   AdminDistributionRoute: typeof AdminDistributionRoute
   AdminDonationsRoute: typeof AdminDonationsRoute
+  AdminFormSettingsRoute: typeof AdminFormSettingsRoute
   AdminPublicSettingsRoute: typeof AdminPublicSettingsRoute
   AdminQueueRoute: typeof AdminQueueRoute
   AdminReferencesRoute: typeof AdminReferencesRoute
@@ -401,6 +421,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminAuditRoute: AdminAuditRoute,
   AdminDistributionRoute: AdminDistributionRoute,
   AdminDonationsRoute: AdminDonationsRoute,
+  AdminFormSettingsRoute: AdminFormSettingsRoute,
   AdminPublicSettingsRoute: AdminPublicSettingsRoute,
   AdminQueueRoute: AdminQueueRoute,
   AdminReferencesRoute: AdminReferencesRoute,

@@ -103,7 +103,6 @@ const BULK_STATUS_OPTIONS: { value: DbStatus; label: string }[] = [
 const NEEDS_OPTIONS = [
   "طعام",
   "ملابس",
-  "أدوية",
   "وسائد وفرش",
   "حفاضات",
   "حليب أطفال",
