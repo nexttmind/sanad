@@ -83,6 +83,17 @@ describe("aid-form-validation", () => {
     const errors = validateAidFormValues(schema, values);
     expect(errors.refType || errors.refName || errors.refPhone).toBeTruthy();
   });
+
+  it("surfaces a form-level error when a core reference binding is missing from schema", () => {
+    const schema = cloneDefaultAidFormSchema();
+    for (const section of schema.sections) {
+      section.fields = section.fields.filter((f) => f.binding !== "ref_phone");
+    }
+    const values = initAidFormValues(schema);
+    const errors = validateAidFormValues(schema, values);
+    expect(errors._form).toBeTruthy();
+    expect(Object.keys(errors).some((k) => k.startsWith("missing_"))).toBe(false);
+  });
 });
 
 describe("aid-form-payload", () => {

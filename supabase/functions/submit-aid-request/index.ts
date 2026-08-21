@@ -372,7 +372,16 @@ Deno.serve(async (req) => {
 
     if (refError) {
       console.error("[submit-aid-request] reference insert:", refError);
-      await admin.from("aid_requests").delete().eq("id", data.id);
+      const { error: rollbackError } = await admin.from("aid_requests").delete().eq("id", data.id);
+      if (rollbackError) {
+        console.error("[submit-aid-request] rollback delete failed:", rollbackError);
+        return jsonWithCors(req, {
+          ok: false,
+          message:
+            "تعذّر إكمال الطلب ولم يتم التراجع عن التسجيل. يرجى التواصل معنا قبل إعادة المحاولة بنفس الرقم.",
+          errors: { reference: "تعذّر حفظ بيانات المرجع" },
+        }, 500);
+      }
       return jsonWithCors(req, {
         ok: false,
         message: "تعذّر حفظ بيانات المرجع — يرجى المحاولة مرة أخرى.",

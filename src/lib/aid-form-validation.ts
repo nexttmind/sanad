@@ -77,16 +77,23 @@ const CORE_REF_MESSAGES: Record<string, string> = {
   ref_known: "يرجى تحديد منذ متى تعرفه",
 };
 
+/** Form-level error key for schema/config issues (no matching field `data-err`). */
+export const AID_FORM_LEVEL_ERROR_KEY = "_form";
+
+const MISSING_CORE_REF_MESSAGE =
+  "تعذّر تحميل حقول المرجع في النموذج — يرجى تحديث الصفحة أو التواصل معنا.";
+
 /** Always enforce core reference fields even if schema required flags were weakened. */
 export function enforceCoreReferenceErrors(
   schema: AidFormSchema,
   values: AidFormValues,
   errors: Record<string, string | null>,
 ): void {
+  let missingCoreBinding = false;
   for (const binding of CORE_REFERENCE_BINDINGS) {
     const field = findFieldByBinding(schema, binding);
     if (!field) {
-      errors[`missing_${binding}`] = CORE_REF_MESSAGES[binding] ?? "المرجع مطلوب";
+      missingCoreBinding = true;
       continue;
     }
     const text = str(values[field.id]).trim();
@@ -97,6 +104,9 @@ export function enforceCoreReferenceErrors(
     if (binding === "ref_phone" && !isLebanesePhone(text)) {
       errors[field.id] = "يرجى التحقق من صيغة الرقم";
     }
+  }
+  if (missingCoreBinding) {
+    errors[AID_FORM_LEVEL_ERROR_KEY] = MISSING_CORE_REF_MESSAGE;
   }
 }
 

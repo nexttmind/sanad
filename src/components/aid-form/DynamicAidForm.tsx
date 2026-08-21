@@ -5,6 +5,7 @@ import {
   initAidFormValues,
   isAidFormFieldVisible,
   phoneFieldId,
+  AID_FORM_LEVEL_ERROR_KEY,
   validateAidFormValues,
   type AidFormValues,
 } from "@/lib/aid-form-validation";
@@ -158,6 +159,7 @@ export function DynamicAidForm({ schema, startedAt, onSuccess }: DynamicAidFormP
   const setVal = (fieldId: string, v: unknown) => setValues((p) => ({ ...p, [fieldId]: v }));
 
   const errors = validateAidFormValues(schema, values);
+  const formLevelError = errors[AID_FORM_LEVEL_ERROR_KEY] ?? null;
   const isValid = Object.keys(errors).length === 0;
   const warnings = getAidFormWarnings(schema, values);
   const reviewRows = buildReviewSummary(schema, values);
@@ -451,6 +453,15 @@ export function DynamicAidForm({ schema, startedAt, onSuccess }: DynamicAidFormP
           </section>
         );
       })}
+
+      {show(AID_FORM_LEVEL_ERROR_KEY) && formLevelError && (
+        <div
+          data-err={AID_FORM_LEVEL_ERROR_KEY}
+          className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
+          {formLevelError}
+        </div>
+      )}
 
       {submitError && (
         <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
