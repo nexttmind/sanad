@@ -105,9 +105,9 @@ function PublicSettingsPage() {
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
         <h1 className="font-display text-2xl">إعدادات الموقع العام</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          تحكم بنصوص صفحة التتبّع، رمز QR، ومعلومات التواصل الظاهرة للجمهور.
-        </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            تحكم بنصوص صفحة التتبّع، رمز QR، ومعلومات التواصل الظاهرة للجمهور. احفظ بعد كل تعديل لترى التغيير على الموقع.
+          </p>
       </div>
 
       <div className="flex flex-wrap gap-2 border-b border-border pb-3">

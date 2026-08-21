@@ -171,7 +171,7 @@ export function AdminShell() {
         {!collapsed && (
           <div className="leading-tight">
             <div className="font-display text-base">سند</div>
-            <div className="text-[10px] uppercase tracking-[0.32em] text-sidebar-foreground/60">Admin</div>
+            <div className="text-[10px] tracking-[0.2em] text-sidebar-foreground/60">لوحة الفريق</div>
           </div>
         )}
         <button
@@ -181,6 +181,15 @@ export function AdminShell() {
         >
           <X className="h-4 w-4" />
         </button>
+      </div>
+
+      <div className="border-b border-sidebar-border px-4 py-2 text-[11px] leading-relaxed text-sidebar-foreground/70">
+        {!collapsed && (
+          <p>
+            ابدأ من <strong className="font-medium text-sidebar-foreground">الدور</strong> أو{" "}
+            <strong className="font-medium text-sidebar-foreground">الطلبات</strong> لمراجعة الحالات اليومية.
+          </p>
+        )}
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto p-3">

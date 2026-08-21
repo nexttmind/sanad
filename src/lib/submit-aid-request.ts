@@ -26,6 +26,15 @@ export type AidRequestSubmitPayload = {
   user_agent?: string | null;
   device_fingerprint?: string | null;
   form_responses?: Record<string, unknown> | null;
+  reference: {
+    reference_type: string;
+    full_name: string;
+    phone: string;
+    region?: string | null;
+    village?: string | null;
+    known_duration?: string | null;
+    notes?: string | null;
+  };
 };
 
 export type SubmitBlockReason =
@@ -50,6 +59,15 @@ export async function submitAidRequest(
 ): Promise<AidRequestSubmitResult> {
   if (!payload.full_name.trim() || !payload.phone.trim()) {
     return { ok: false, message: "invalid request" };
+  }
+  if (
+    !payload.reference?.reference_type?.trim() ||
+    !payload.reference?.full_name?.trim() ||
+    !payload.reference?.phone?.trim() ||
+    !payload.reference?.region?.trim() ||
+    !payload.reference?.known_duration?.trim()
+  ) {
+    return { ok: false, message: "يرجى إكمال بيانات المرجع قبل الإرسال." };
   }
 
   let timeoutId: ReturnType<typeof setTimeout> | undefined;

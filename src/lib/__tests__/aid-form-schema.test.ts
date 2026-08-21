@@ -63,6 +63,26 @@ describe("aid-form-validation", () => {
     const errors = validateAidFormValues(schema, values);
     expect(errors.needs).toBeTruthy();
   });
+
+  it("always requires core reference even if required flags cleared", () => {
+    const schema = cloneDefaultAidFormSchema();
+    for (const f of schema.sections.flatMap((s) => s.fields)) {
+      if (f.binding?.startsWith("ref_")) f.required = false;
+    }
+    const values = initAidFormValues(schema);
+    values.first = "محمد";
+    values.father = "علي";
+    values.family = "حسين";
+    values.phone = "+96171123456";
+    values.total = "4";
+    values.u12 = "2";
+    values.u2 = "1";
+    values.needs = ["طعام"];
+    values.confirmed = true;
+
+    const errors = validateAidFormValues(schema, values);
+    expect(errors.refType || errors.refName || errors.refPhone).toBeTruthy();
+  });
 });
 
 describe("aid-form-payload", () => {
@@ -78,11 +98,18 @@ describe("aid-form-payload", () => {
     values.u2 = "1";
     values.needs = ["طعام", "ملابس"];
     values.clothesDesc = "ملابس أطفال مقاس صغير";
+    values.refType = "مختار";
+    values.refName = "أحمد";
+    values.refPhone = "+96170123456";
+    values.refRegion = "صور";
+    values.refKnown = "طوال عمري";
 
     const { payload } = buildAidFormSubmitPayload(schema, values, {});
     expect(payload.full_name).toBe("محمد علي حسين");
     expect(payload.needs).toContain("طعام");
     expect(payload.needs.some((n) => n.startsWith("ملابس:"))).toBe(true);
     expect(payload.needs.some((n) => n.includes("أدوية"))).toBe(false);
+    expect(payload.reference.full_name).toBe("أحمد");
+    expect(payload.reference.reference_type).toBe("مختار");
   });
 });

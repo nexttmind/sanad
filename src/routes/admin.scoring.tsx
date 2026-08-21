@@ -193,7 +193,7 @@ function ScoringConfigPage() {
       <div>
         <h1 className="font-display text-2xl">قواعد العجلة</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          تعديل سقف النقاط لكل فئة وسقف التطبيع. تُقرأ القيم النشطة عند كل احتساب.
+          تعديل سقف النقاط لكل فئة. الأرقام الأعلى تعني تأثيراً أكبر على ترتيب العجلة. بعد الحفظ يمكن إعادة احتساب الطلبات لتطبيق التغيير.
         </p>
         {config && (
           <p className="mt-2 text-xs text-muted-foreground">
@@ -204,7 +204,7 @@ function ScoringConfigPage() {
       </div>
 
       {!rules ? (
-        <p className="text-sm text-muted-foreground">لا توجد إعدادات — طبّق migration v2.</p>
+        <p className="text-sm text-muted-foreground">لا توجد إعدادات محفوظة بعد. احفظ القواعد لإنشاء الإصدار الأول.</p>
       ) : (
         <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <div className="grid gap-4">
@@ -277,7 +277,15 @@ function ScoringConfigPage() {
             <button
               type="button"
               disabled={saving || recalculating}
-              onClick={() => void handleBulkRecalc()}
+              onClick={() => {
+                if (
+                  confirm(
+                    "إعادة احتساب درجات العجلة لجميع الطلبات؟ قد يستغرق ذلك بعض الوقت.",
+                  )
+                ) {
+                  void handleBulkRecalc();
+                }
+              }}
               className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm hover:border-foreground/40 disabled:opacity-50"
             >
               {recalculating && <Loader2 className="h-4 w-4 animate-spin" />}

@@ -185,6 +185,9 @@ function Analytics() {
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="font-display text-base">الفئات الأكثر ضعفاً</div>
           <ul className="mt-4 space-y-3 text-sm">
+            {vuln.length === 0 && (
+              <li className="text-xs text-muted-foreground">لا بيانات بعد — ستظهر هنا عند وجود طلبات.</li>
+            )}
             {vuln.map(([l, v]) => (
               <li key={l} className="flex items-center gap-3">
                 <span className="w-32 truncate text-xs text-muted-foreground">{l}</span>
@@ -218,6 +221,9 @@ function Analytics() {
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="font-display text-base">توزيع نقاط الثقة</div>
           <div className="mt-6 flex h-32 items-end gap-2">
+            {trustHist.every((d) => d.count === 0) && (
+              <div className="text-xs text-muted-foreground">لا بيانات بعد.</div>
+            )}
             {trustHist.map((d, i) => (
               <div key={i} className="flex flex-1 flex-col items-center gap-1">
                 <div
@@ -233,6 +239,9 @@ function Analytics() {
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="font-display text-base">توزيع نقاط العجلة</div>
           <div className="mt-6 flex h-32 items-end gap-2">
+            {urgencyHist.every((d) => d.count === 0) && (
+              <div className="text-xs text-muted-foreground">لا بيانات بعد.</div>
+            )}
             {urgencyHist.map((d, i) => (
               <div key={i} className="flex flex-1 flex-col items-center gap-1">
                 <div
@@ -247,10 +256,15 @@ function Analytics() {
 
         <div className="rounded-xl border border-border bg-card p-5 lg:col-span-2">
           <div className="font-display text-base">معدّل الإكمال</div>
+          <p className="mt-1 text-xs text-muted-foreground">نسبة الطلبات المعتمدة التي تم توزيع المساعدة عليها.</p>
           <div className="mt-6 flex items-end gap-6">
             <div>
               <div className="font-display text-5xl">{progress.rate}%</div>
-              <div className="text-xs text-muted-foreground">طلبات معتمدة تم توزيعها</div>
+              <div className="text-xs text-muted-foreground">
+                {progress.approved + progress.distributed === 0
+                  ? "لا بيانات بعد"
+                  : "طلبات معتمدة تم توزيعها"}
+              </div>
             </div>
             <div className="flex-1">
               <div className="h-3 overflow-hidden rounded-full bg-muted">

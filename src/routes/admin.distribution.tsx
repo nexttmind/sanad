@@ -166,7 +166,7 @@ function Distribution() {
       return;
     }
     if (!/^\d{6}$/.test(pinInput.trim())) {
-      setError("رمز PIN يجب أن يكون 6 أرقام.");
+      setError("رمز التحقق يجب أن يكون ٦ أرقام.");
       setBusy(false);
       return;
     }
@@ -420,7 +420,7 @@ function Distribution() {
               dir="ltr"
               value={pinInput}
               onChange={(e) => setPinInput(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              placeholder="PIN (6 أرقام)"
+              placeholder="رمز التحقق (٦ أرقام)"
               inputMode="numeric"
               autoComplete="one-time-code"
               maxLength={6}

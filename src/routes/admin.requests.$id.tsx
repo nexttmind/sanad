@@ -345,6 +345,15 @@ function Detail() {
         )}
       </div>
 
+      <div className="rounded-xl border border-clay/30 bg-clay/5 p-4">
+        <div className="text-sm font-medium text-foreground">ماذا أفعل الآن؟</div>
+        <ol className="mt-2 list-decimal space-y-1 pe-5 text-xs text-muted-foreground">
+          <li>تحقق من رقم الهاتف واتصل بمقدّم الطلب إن لزم.</li>
+          <li>راجع بيانات المرجع واتصل به لتأكيد الحالة.</li>
+          <li>اتخذ قراراً: موافقة، تعليق، أو رفض مع ذكر السبب.</li>
+        </ol>
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <EditableRequestSections

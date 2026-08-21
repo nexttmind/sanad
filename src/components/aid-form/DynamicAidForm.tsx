@@ -9,16 +9,15 @@ import {
   type AidFormValues,
 } from "@/lib/aid-form-validation";
 import {
-  buildAidFormReferencePayload,
   buildAidFormSubmitPayload,
   buildReviewSummary,
 } from "@/lib/aid-form-payload";
-import { insertSubmissionReference } from "@/lib/submission-reference";
 import { submitAidRequest } from "@/lib/submit-aid-request";
 import { getDeviceFingerprint } from "@/lib/device-fingerprint";
 import { precheckAidSubmission } from "@/lib/precheck-aid-submission";
 import { isLebanesePhone } from "@/lib/phone-normalize";
 import { DuplicateSubmissionAlert } from "@/components/DuplicateSubmissionAlert";
+import { findFieldByBinding } from "@/lib/aid-form-validation";
 
 const inputCls =
   "w-full rounded-lg border border-border bg-background px-3.5 py-3 text-[15px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none focus:ring-2 focus:ring-clay/20";
@@ -162,6 +161,8 @@ export function DynamicAidForm({ schema, startedAt, onSuccess }: DynamicAidFormP
   const isValid = Object.keys(errors).length === 0;
   const warnings = getAidFormWarnings(schema, values);
   const reviewRows = buildReviewSummary(schema, values);
+  const confirmField = findFieldByBinding(schema, "confirm");
+  const confirmed = confirmField ? values[confirmField.id] === true : true;
 
   const phoneId = phoneFieldId(schema);
   const phone = phoneId ? str(values[phoneId]) : "";
@@ -231,20 +232,6 @@ export function DynamicAidForm({ schema, startedAt, onSuccess }: DynamicAidFormP
         setSubmitError(submitResult.message);
         return;
       }
-
-      const ref = buildAidFormReferencePayload(schema, values);
-      void insertSubmissionReference({
-        request_id: submitResult.id,
-        reference_type: ref.reference_type,
-        full_name: ref.full_name,
-        phone: ref.phone,
-        region: ref.region,
-        village: ref.village,
-        known_duration: ref.known_duration,
-        notes: ref.notes,
-      }).catch((err) => {
-        if (import.meta.env.DEV) console.error("[RequestSubmit] reference insert:", err);
-      });
 
       onSuccess({ code: submitResult.reference_code, id: submitResult.id });
     } catch (err) {
@@ -474,7 +461,7 @@ export function DynamicAidForm({ schema, startedAt, onSuccess }: DynamicAidFormP
       <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:justify-center">
         <button
           type="submit"
-          disabled={submitting || submitBlocked}
+          disabled={submitting || submitBlocked || !confirmed}
           className="touch-target rounded-full bg-primary px-8 py-3.5 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
         >
           {submitting ? "جاري الإرسال..." : "إرسال الطلب"}

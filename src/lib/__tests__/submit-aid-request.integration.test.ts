@@ -17,6 +17,13 @@ const basePayload = {
   pregnant_or_nursing: false,
   displaced: true,
   needs: ["طعام"],
+  reference: {
+    reference_type: "مختار",
+    full_name: "أحمد المختار",
+    phone: "71123456",
+    region: "قضاء صور",
+    known_duration: "طوال عمري",
+  },
 };
 
 describe("submit-aid-request supabase flows", () => {
@@ -31,6 +38,22 @@ describe("submit-aid-request supabase flows", () => {
       phone: "",
     });
     expect(result).toEqual({ ok: false, message: "invalid request" });
+    expect(supabase.functions.invoke).not.toHaveBeenCalled();
+  });
+
+  it("submitAidRequest rejects missing reference locally", async () => {
+    const result = await submitAidRequest({
+      ...basePayload,
+      reference: {
+        reference_type: "",
+        full_name: "",
+        phone: "",
+      },
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.message).toContain("المرجع");
+    }
     expect(supabase.functions.invoke).not.toHaveBeenCalled();
   });
 

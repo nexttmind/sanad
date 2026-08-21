@@ -5,8 +5,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { logAdminAction } from "@/lib/audit-log";
 import {
   AID_FORM_FIELD_TYPE_LABELS,
+  allAidFormFields,
   cloneDefaultAidFormSchema,
   fetchAidFormSchema,
+  isLockedAidFormBinding,
   newFieldId,
   newSectionId,
   saveAidFormSchema,
@@ -22,7 +24,7 @@ export const Route = createFileRoute("/admin/form-settings")({
 });
 
 const BINDING_OPTIONS: { value: AidFormFieldBinding | ""; label: string }[] = [
-  { value: "", label: "— حقل مخصّص (يُحفظ في form_responses) —" },
+  { value: "", label: "— حقل مخصّص (يُحفظ مع الطلب) —" },
   { value: "first_name", label: "الاسم الأول" },
   { value: "father_name", label: "اسم الأب" },
   { value: "family_name", label: "اسم العائلة" },
@@ -74,6 +76,8 @@ function FormSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+  const [advancedMode, setAdvancedMode] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
     void (async () => {
@@ -126,6 +130,10 @@ function FormSettingsPage() {
   };
 
   const removeSection = (sectionId: string) => {
+    if (sectionId === "reference" || sectionId === "personal" || sectionId === "review") {
+      setMessage("لا يمكن حذف أقسام الاسم أو المرجع أو التأكيد — فهي أساسية للطلب.");
+      return;
+    }
     if (!confirm("حذف هذا القسم وجميع حقوله؟")) return;
     setSchema((s) => ({ ...s, sections: s.sections.filter((sec) => sec.id !== sectionId) }));
   };
@@ -146,6 +154,12 @@ function FormSettingsPage() {
   };
 
   const removeField = (sectionId: string, fieldId: string) => {
+    const field = schema.sections.flatMap((s) => s.fields).find((f) => f.id === fieldId);
+    if (isLockedAidFormBinding(field?.binding)) {
+      setMessage("لا يمكن حذف هذا الحقل — مطلوب لإرسال الطلب.");
+      return;
+    }
+    if (!confirm("حذف هذا السؤال؟")) return;
     setSchema((s) => ({
       ...s,
       sections: s.sections.map((sec) =>
@@ -174,8 +188,18 @@ function FormSettingsPage() {
     setSaving(true);
     setMessage(null);
     try {
-      const version = await saveAidFormSchema({ ...schema, version: schema.version + 1 });
-      setSchema((s) => ({ ...s, version }));
+      const normalized: AidFormSchema = {
+        ...schema,
+        version: schema.version + 1,
+        sections: schema.sections.map((sec) => ({
+          ...sec,
+          fields: sec.fields.map((f) =>
+            isLockedAidFormBinding(f.binding) ? { ...f, required: true } : f,
+          ),
+        })),
+      };
+      const version = await saveAidFormSchema(normalized);
+      setSchema((s) => ({ ...normalized, version }));
       await logAdminAction({
         action: "aid_form_schema_updated",
         actorName: displayName,
@@ -214,6 +238,23 @@ function FormSettingsPage() {
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
+            onClick={() => setAdvancedMode((v) => !v)}
+            className={[
+              "rounded-full border px-4 py-2 text-sm",
+              advancedMode ? "border-clay bg-clay/10 text-clay" : "border-border hover:border-clay",
+            ].join(" ")}
+          >
+            {advancedMode ? "وضع بسيط" : "إعدادات متقدمة"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowPreview((v) => !v)}
+            className="rounded-full border border-border px-4 py-2 text-sm hover:border-clay"
+          >
+            {showPreview ? "إخفاء المعاينة" : "معاينة الأسئلة"}
+          </button>
+          <button
+            type="button"
             onClick={resetDefaults}
             className="rounded-full border border-border px-4 py-2 text-sm hover:border-clay"
           >
@@ -239,6 +280,34 @@ function FormSettingsPage() {
 
       {message && (
         <div className="rounded-lg border border-border bg-surface px-4 py-3 text-sm">{message}</div>
+      )}
+
+      {showPreview && (
+        <div className="rounded-xl border border-border bg-surface p-4">
+          <div className="mb-3 text-sm font-medium">معاينة سريعة للنموذج العام</div>
+          <div className="space-y-4">
+            {schema.sections.map((sec) => (
+              <div key={sec.id}>
+                <div className="font-display text-base">
+                  {sec.number_label} — {sec.title}
+                </div>
+                <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+                  {sec.fields.map((f) => (
+                    <li key={f.id}>
+                      {f.label}
+                      {(f.required || isLockedAidFormBinding(f.binding)) && (
+                        <span className="text-clay"> *</span>
+                      )}
+                      {f.parent_option && (
+                        <span className="text-xs"> (يظهر مع: {f.parent_option})</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       <div className="space-y-4">
@@ -311,8 +380,10 @@ function FormSettingsPage() {
                           </button>
                           <button
                             type="button"
+                            disabled={isLockedAidFormBinding(field.binding)}
                             onClick={() => removeField(section.id, field.id)}
-                            className="rounded border border-destructive/40 px-2 py-1 text-xs text-destructive"
+                            className="rounded border border-destructive/40 px-2 py-1 text-xs text-destructive disabled:opacity-40"
+                            title={isLockedAidFormBinding(field.binding) ? "حقل أساسي لا يمكن حذفه" : "حذف"}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -346,11 +417,13 @@ function FormSettingsPage() {
                             )}
                           </select>
                         </label>
+                        {advancedMode && (
                         <label className="block text-sm">
-                          <span className="mb-1 block text-muted-foreground">ربط بقاعدة البيانات</span>
+                          <span className="mb-1 block text-muted-foreground">ربط بالحقل الأساسي</span>
                           <select
                             className={inputCls}
                             value={field.binding ?? ""}
+                            disabled={isLockedAidFormBinding(field.binding)}
                             onChange={(e) =>
                               updateField(section.id, field.id, {
                                 binding: (e.target.value || undefined) as AidFormFieldBinding | undefined,
@@ -364,13 +437,18 @@ function FormSettingsPage() {
                             ))}
                           </select>
                         </label>
+                        )}
                         <label className="flex items-center gap-2 text-sm">
                           <input
                             type="checkbox"
-                            checked={!!field.required}
+                            checked={!!field.required || isLockedAidFormBinding(field.binding)}
+                            disabled={isLockedAidFormBinding(field.binding)}
                             onChange={(e) => updateField(section.id, field.id, { required: e.target.checked })}
                           />
                           مطلوب
+                          {isLockedAidFormBinding(field.binding) && (
+                            <span className="text-[11px] text-muted-foreground">(أساسي)</span>
+                          )}
                         </label>
                         <label className="block text-sm">
                           <span className="mb-1 block text-muted-foreground">تلميح (اختياري)</span>
@@ -381,7 +459,7 @@ function FormSettingsPage() {
                           />
                         </label>
                         <label className="block text-sm">
-                          <span className="mb-1 block text-muted-foreground">placeholder</span>
+                          <span className="mb-1 block text-muted-foreground">نص توضيحي داخل الحقل</span>
                           <input
                             className={inputCls}
                             value={field.placeholder ?? ""}
@@ -411,7 +489,7 @@ function FormSettingsPage() {
                         {section.id === "needs" && field.type !== "multiselect" && (
                           <label className="block text-sm md:col-span-2">
                             <span className="mb-1 block text-muted-foreground">
-                              يظهر عند اختيار احتياج (parent_option)
+                              يظهر عند اختيار هذا الاحتياج
                             </span>
                             <input
                               className={inputCls}
@@ -425,15 +503,14 @@ function FormSettingsPage() {
                             />
                           </label>
                         )}
-                        {field.binding !== "needs" && (
+                        {advancedMode && field.binding !== "needs" && (
                           <label className="block text-sm md:col-span-2">
                             <span className="mb-1 block text-muted-foreground">
-                              يظهر عند (field_id= — op=truthy|eq|includes — value=)
+                              أظهر هذا السؤال عندما
                             </span>
                             <div className="grid gap-2 md:grid-cols-3">
-                              <input
+                              <select
                                 className={inputCls}
-                                placeholder="field_id"
                                 value={field.visible_when?.field_id ?? ""}
                                 onChange={(e) =>
                                   updateField(section.id, field.id, {
@@ -446,25 +523,37 @@ function FormSettingsPage() {
                                       : undefined,
                                   })
                                 }
-                              />
+                              >
+                                <option value="">— دائماً ظاهر —</option>
+                                {allAidFormFields(schema)
+                                  .filter((f) => f.id !== field.id)
+                                  .map((f) => (
+                                    <option key={f.id} value={f.id}>
+                                      {f.label}
+                                    </option>
+                                  ))}
+                              </select>
                               <select
                                 className={inputCls}
                                 value={field.visible_when?.op ?? "truthy"}
                                 onChange={(e) =>
                                   updateField(section.id, field.id, {
                                     visible_when: field.visible_when
-                                      ? { ...field.visible_when, op: e.target.value as "eq" | "truthy" | "includes" }
+                                      ? {
+                                          ...field.visible_when,
+                                          op: e.target.value as "eq" | "truthy" | "includes",
+                                        }
                                       : undefined,
                                   })
                                 }
                               >
-                                <option value="truthy">truthy</option>
-                                <option value="eq">eq</option>
-                                <option value="includes">includes</option>
+                                <option value="truthy">يكون نعم / مفعّلاً</option>
+                                <option value="eq">يساوي</option>
+                                <option value="includes">يتضمن</option>
                               </select>
                               <input
                                 className={inputCls}
-                                placeholder="value (اختياري)"
+                                placeholder="القيمة (إن لزم)"
                                 value={String(field.visible_when?.value ?? "")}
                                 onChange={(e) =>
                                   updateField(section.id, field.id, {

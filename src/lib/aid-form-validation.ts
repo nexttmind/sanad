@@ -1,7 +1,9 @@
 import { isLebanesePhone } from "@/lib/phone-normalize";
 import {
   allAidFormFields,
+  CORE_REFERENCE_BINDINGS,
   type AidFormField,
+  type AidFormFieldBinding,
   type AidFormSchema,
   type AidFormVisibleWhen,
 } from "@/lib/aid-form-schema";
@@ -67,6 +69,37 @@ export function initAidFormValues(schema: AidFormSchema): AidFormValues {
   return values;
 }
 
+const CORE_REF_MESSAGES: Record<string, string> = {
+  ref_type: "يرجى اختيار نوع المرجع",
+  ref_name: "يرجى إدخال اسم المرجع",
+  ref_phone: "يرجى إدخال رقم هاتف المرجع",
+  ref_region: "يرجى إدخال منطقة المرجع",
+  ref_known: "يرجى تحديد منذ متى تعرفه",
+};
+
+/** Always enforce core reference fields even if schema required flags were weakened. */
+export function enforceCoreReferenceErrors(
+  schema: AidFormSchema,
+  values: AidFormValues,
+  errors: Record<string, string | null>,
+): void {
+  for (const binding of CORE_REFERENCE_BINDINGS) {
+    const field = findFieldByBinding(schema, binding);
+    if (!field) {
+      errors[`missing_${binding}`] = CORE_REF_MESSAGES[binding] ?? "المرجع مطلوب";
+      continue;
+    }
+    const text = str(values[field.id]).trim();
+    if (!text) {
+      errors[field.id] = CORE_REF_MESSAGES[binding] ?? "هذا الحقل مطلوب";
+      continue;
+    }
+    if (binding === "ref_phone" && !isLebanesePhone(text)) {
+      errors[field.id] = "يرجى التحقق من صيغة الرقم";
+    }
+  }
+}
+
 export function validateAidFormValues(
   schema: AidFormSchema,
   values: AidFormValues,
@@ -77,8 +110,12 @@ export function validateAidFormValues(
     if (!isAidFormFieldVisible(field, values, schema)) continue;
 
     const raw = values[field.id];
+    const forceRequired =
+      field.required ||
+      isCoreReferenceBindingSafe(field.binding) ||
+      field.binding === "confirm";
 
-    if (field.required) {
+    if (forceRequired) {
       if (field.type === "checkbox" || field.type === "toggle") {
         if (!bool(raw)) errors[field.id] = "هذا الحقل مطلوب";
         continue;
@@ -88,7 +125,7 @@ export function validateAidFormValues(
         continue;
       }
       if (!str(raw).trim()) {
-        errors[field.id] = "هذا الحقل مطلوب";
+        errors[field.id] = CORE_REF_MESSAGES[field.binding ?? ""] ?? "هذا الحقل مطلوب";
         continue;
       }
     }
@@ -131,15 +168,13 @@ export function validateAidFormValues(
     }
   }
 
-  const needsField = allAidFormFields(schema).find((f) => f.binding === "needs");
-  if (needsField && isAidFormFieldVisible(needsField, values, schema)) {
-    const needs = strArr(values[needsField.id]);
-    if (needs.length >= 9) {
-      // soft warning only — handled in form UI
-    }
-  }
+  enforceCoreReferenceErrors(schema, values, errors);
 
   return errors;
+}
+
+function isCoreReferenceBindingSafe(binding?: AidFormFieldBinding): boolean {
+  return !!binding && (CORE_REFERENCE_BINDINGS as readonly string[]).includes(binding);
 }
 
 export function getAidFormWarnings(schema: AidFormSchema, values: AidFormValues): string[] {

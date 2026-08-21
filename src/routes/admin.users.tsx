@@ -167,7 +167,7 @@ function Users() {
               type="email"
               value={form.email}
               onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-              placeholder="email@example.com"
+              placeholder="البريد الإلكتروني"
               className="rounded-md border border-border bg-background px-3 py-2 text-sm"
             />
             <input
@@ -272,7 +272,7 @@ function Users() {
             {!loading && rows.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
-                  لا يوجد مستخدمون.
+                  لا يوجد مستخدمون بعد. ادعُ زميلاً من النموذج أعلاه.
                 </td>
               </tr>
             )}
@@ -280,7 +280,7 @@ function Users() {
         </table>
         </AdminDesktopTable>
 
-        <AdminMobileList loading={loading} empty={!loading && rows.length === 0} emptyMessage="لا يوجد مستخدمون.">
+        <AdminMobileList loading={loading} empty={!loading && rows.length === 0} emptyMessage="لا يوجد مستخدمون بعد. ادعُ زميلاً من النموذج أعلاه.">
           {rows.map((u) => (
             <AdminMobileCard key={`${u.user_id}-${u.role}`}>
               <AdminMobileCardHeader

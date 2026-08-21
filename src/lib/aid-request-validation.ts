@@ -147,6 +147,15 @@ export type AidRequestServerBody = {
   needs?: string[];
   needs_other?: string | null;
   notes?: string | null;
+  reference?: {
+    reference_type?: string;
+    full_name?: string;
+    phone?: string;
+    region?: string | null;
+    village?: string | null;
+    known_duration?: string | null;
+    notes?: string | null;
+  };
 };
 
 export function validateAidRequestServerBody(body: AidRequestServerBody): Record<string, string> {
@@ -167,6 +176,14 @@ export function validateAidRequestServerBody(body: AidRequestServerBody): Record
   }
 
   if ((body.family_size ?? 0) < 1) errors.family_size = "يرجى إدخال عدد أفراد العائلة";
+
+  const ref = body.reference;
+  if (!ref?.reference_type?.trim()) errors.ref_type = "يرجى اختيار نوع المرجع";
+  if (!ref?.full_name?.trim()) errors.ref_name = "يرجى إدخال اسم المرجع";
+  if (!ref?.phone?.trim()) errors.ref_phone = "يرجى إدخال رقم هاتف المرجع";
+  else if (!isLebanesePhone(ref.phone)) errors.ref_phone = "يرجى التحقق من صيغة رقم المرجع";
+  if (!ref?.region?.trim()) errors.ref_region = "يرجى إدخال منطقة المرجع";
+  if (!ref?.known_duration?.trim()) errors.ref_known = "يرجى تحديد منذ متى تعرفه";
 
   return errors;
 }

@@ -12,6 +12,15 @@ type AidRequestServerBody = {
   alt_phone?: string | null;
   needs?: string[];
   family_size?: number;
+  reference?: {
+    reference_type?: string;
+    full_name?: string;
+    phone?: string;
+    region?: string | null;
+    village?: string | null;
+    known_duration?: string | null;
+    notes?: string | null;
+  };
 };
 
 function validateAidRequestServerBody(body: AidRequestServerBody): Record<string, string> {
@@ -32,6 +41,14 @@ function validateAidRequestServerBody(body: AidRequestServerBody): Record<string
   }
 
   if ((body.family_size ?? 0) < 1) errors.family_size = "يرجى إدخال عدد أفراد العائلة";
+
+  const ref = body.reference;
+  if (!ref?.reference_type?.trim()) errors.ref_type = "يرجى اختيار نوع المرجع";
+  if (!ref?.full_name?.trim()) errors.ref_name = "يرجى إدخال اسم المرجع";
+  if (!ref?.phone?.trim()) errors.ref_phone = "يرجى إدخال رقم هاتف المرجع";
+  else if (!isLebanesePhone(ref.phone)) errors.ref_phone = "يرجى التحقق من صيغة رقم المرجع";
+  if (!ref?.region?.trim()) errors.ref_region = "يرجى إدخال منطقة المرجع";
+  if (!ref?.known_duration?.trim()) errors.ref_known = "يرجى تحديد منذ متى تعرفه";
 
   return errors;
 }
@@ -339,6 +356,28 @@ Deno.serve(async (req) => {
 
     if (!data) {
       return jsonWithCors(req, { ok: false, message: "تعذّر إرسال الطلب." }, 500);
+    }
+
+    const ref = body.reference!;
+    const { error: refError } = await admin.from("submission_references").insert({
+      request_id: data.id,
+      reference_type: ref.reference_type!.trim(),
+      full_name: ref.full_name!.trim(),
+      phone: ref.phone!.trim(),
+      region: ref.region?.trim() || null,
+      village: ref.village?.trim() || null,
+      known_duration: ref.known_duration?.trim() || null,
+      notes: ref.notes?.trim() || null,
+    });
+
+    if (refError) {
+      console.error("[submit-aid-request] reference insert:", refError);
+      await admin.from("aid_requests").delete().eq("id", data.id);
+      return jsonWithCors(req, {
+        ok: false,
+        message: "تعذّر حفظ بيانات المرجع — يرجى المحاولة مرة أخرى.",
+        errors: { reference: "تعذّر حفظ بيانات المرجع" },
+      }, 500);
     }
 
     return jsonWithCors(req, { ok: true, id: data.id, reference_code: data.reference_code }, 200);

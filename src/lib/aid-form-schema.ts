@@ -363,3 +363,34 @@ export const AID_FORM_FIELD_TYPE_LABELS: Record<AidFormFieldType, string> = {
   date: "تاريخ",
   checkbox: "مربّع تأكيد",
 };
+
+/** Core bindings that must stay required — cannot be removed/unrequired in form-settings. */
+export const LOCKED_AID_FORM_BINDINGS: readonly AidFormFieldBinding[] = [
+  "first_name",
+  "father_name",
+  "family_name",
+  "phone",
+  "needs",
+  "ref_type",
+  "ref_name",
+  "ref_phone",
+  "ref_region",
+  "ref_known",
+  "confirm",
+] as const;
+
+export const CORE_REFERENCE_BINDINGS: readonly AidFormFieldBinding[] = [
+  "ref_type",
+  "ref_name",
+  "ref_phone",
+  "ref_region",
+  "ref_known",
+] as const;
+
+export function isLockedAidFormBinding(binding?: AidFormFieldBinding): boolean {
+  return !!binding && (LOCKED_AID_FORM_BINDINGS as readonly string[]).includes(binding);
+}
+
+export function isCoreReferenceBinding(binding?: AidFormFieldBinding): boolean {
+  return !!binding && (CORE_REFERENCE_BINDINGS as readonly string[]).includes(binding);
+}

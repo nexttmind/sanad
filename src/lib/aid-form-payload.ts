@@ -129,6 +129,15 @@ export function buildAidFormSubmitPayload(
     user_agent: meta.user_agent ?? null,
     device_fingerprint: meta.device_fingerprint ?? null,
     form_responses: Object.keys(form_responses).length > 0 ? form_responses : undefined,
+    reference: {
+      reference_type: str(valueByBinding(schema, values, "ref_type")),
+      full_name: str(valueByBinding(schema, values, "ref_name")).trim(),
+      phone: str(valueByBinding(schema, values, "ref_phone")).trim(),
+      region: str(valueByBinding(schema, values, "ref_region")).trim() || null,
+      village: str(valueByBinding(schema, values, "ref_village")).trim() || null,
+      known_duration: str(valueByBinding(schema, values, "ref_known")) || null,
+      notes: str(valueByBinding(schema, values, "ref_notes")).trim() || null,
+    },
   };
 
   return { payload, form_responses };

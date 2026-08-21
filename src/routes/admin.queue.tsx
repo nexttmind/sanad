@@ -11,6 +11,7 @@ import {
 import { bulkAssignReviewer, selectTopForBulkAssign } from "@/lib/queue-assign";
 import { listSubmissions } from "@/lib/submissions-list";
 import { QueueIntegrityPanel } from "@/components/admin/QueueIntegrityPanel";
+import { AdminActionModal } from "@/components/admin/AdminActionModal";
 import { ExportSubmissionsModal } from "@/components/admin/ExportSubmissionsModal";
 import {
   AdminDesktopTable,
@@ -40,7 +41,8 @@ const STATUS_AR = {
 } as const;
 
 function WorkQueue() {
-  const { displayName } = useAuth();
+  const { displayName, roles } = useAuth();
+  const isAdmin = roles.includes("admin");
   const [rows, setRows] = useState<AidRowExtended[]>([]);
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [staffNames, setStaffNames] = useState<Record<string, string>>({});
@@ -54,6 +56,7 @@ function WorkQueue() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkMessage, setBulkMessage] = useState<string | null>(null);
   const [showExport, setShowExport] = useState(false);
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -113,7 +116,7 @@ function WorkQueue() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
-          دور العمل — ترتيب: العجلة الفعّالة ثم رقم الدور (FIFO)
+          دور العمل — الأهم أولاً (حسب درجة العجلة)، ثم حسب رقم الدور
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -141,7 +144,7 @@ function WorkQueue() {
         </div>
       </div>
 
-      <QueueIntegrityPanel />
+      {isAdmin && <QueueIntegrityPanel />}
 
       {tab === "submitted" && (
         <div className="rounded-xl border border-border bg-card p-4">
@@ -158,7 +161,7 @@ function WorkQueue() {
                 <option value="">— اختر مراجعاً —</option>
                 {staff.map((m) => (
                   <option key={m.user_id} value={m.user_id}>
-                    {m.display_name} ({m.role})
+                    {m.display_name}
                   </option>
                 ))}
               </select>
@@ -187,7 +190,7 @@ function WorkQueue() {
             <button
               type="button"
               disabled={bulkBusy || !bulkReviewerId || rows.length === 0}
-              onClick={() => void handleBulkAssign()}
+              onClick={() => setBulkConfirmOpen(true)}
               className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
               {bulkBusy && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -195,13 +198,25 @@ function WorkQueue() {
             </button>
           </div>
           <p className="mt-2 text-[11px] text-muted-foreground">
-            {unassignedInView} طلباً غير معيّن في العرض الحالي (حتى 100 صف).
+            {unassignedInView} طلباً غير معيّن في هذه القائمة (تُعرض حتى ١٠٠ طلباً).
           </p>
           {bulkMessage && (
             <p className="mt-2 text-xs text-clay">{bulkMessage}</p>
           )}
         </div>
       )}
+
+      <AdminActionModal
+        open={bulkConfirmOpen}
+        onClose={() => setBulkConfirmOpen(false)}
+        title="تأكيد التعيين الجماعي"
+        description={`سيتم تعيين أول ${bulkCount} طلبات للمراجع المحدد. هل تريد المتابعة؟`}
+        confirmLabel="تعيين"
+        onConfirm={() => {
+          setBulkConfirmOpen(false);
+          void handleBulkAssign();
+        }}
+      />
 
       {loadError && (
         <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">

@@ -191,6 +191,8 @@ function RequestsList() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkMessage, setBulkMessage] = useState<string | null>(null);
   const [bulkRejectOpen, setBulkRejectOpen] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [bulkStatusConfirmOpen, setBulkStatusConfirmOpen] = useState(false);
 
   const filters: SubmissionFilters = useMemo(
     () => ({
@@ -390,6 +392,11 @@ function RequestsList() {
       setBulkRejectOpen(true);
       return;
     }
+    setBulkStatusConfirmOpen(true);
+  };
+
+  const confirmBulkStatus = () => {
+    setBulkStatusConfirmOpen(false);
     void runBulkAction(async () => {
       const result = await bulkUpdateRequestStatus(pickedRows, bulkStatus, displayName);
       return result.ok ? { ok: true, updated: result.updated } : { ok: false, message: result.message };
@@ -481,7 +488,7 @@ function RequestsList() {
       <div className="rounded-xl border border-clay/30 bg-clay/5 p-4 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="text-sm font-semibold">دفعة اليوم — ٥٠ طلباً (FIFO)</div>
+            <div className="text-sm font-semibold">دفعة اليوم — ٥٠ طلباً بالترتيب</div>
             <p className="mt-1 text-[11px] text-muted-foreground">
               اختر يوماً بتوقيت بيروت — تُعرض الطلبات حسب رقم الدور (#1–50، ثم #51–80…). الاستقبال العام يبقى مفتوحاً.
             </p>
@@ -499,7 +506,7 @@ function RequestsList() {
         {dailyBatchEnabled && (
           <div className="flex flex-wrap items-end gap-3">
             <label className="space-y-1 text-xs">
-              <span className="text-muted-foreground">اليوم (Asia/Beirut)</span>
+              <span className="text-muted-foreground">اليوم (بتوقيت بيروت)</span>
               <input
                 type="date"
                 value={batchDate}
@@ -643,6 +650,17 @@ function RequestsList() {
             </button>
           ))}
         </div>
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={() => setShowAdvancedFilters((v) => !v)}
+            className="rounded-full border border-border px-3 py-1 text-xs hover:border-clay"
+          >
+            {showAdvancedFilters ? "إخفاء الفلاتر المتقدمة" : "فلاتر متقدمة"}
+          </button>
+        </div>
+        {showAdvancedFilters && (
+        <>
         <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
           <label className="space-y-1 text-xs">
             <span className="text-muted-foreground">المحافظة / القضاء</span>
@@ -844,6 +862,8 @@ function RequestsList() {
             إشارات احتيال فقط
           </label>
         </div>
+        </>
+        )}
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <SavedViewsDropdown
             filters={filters}
@@ -1154,7 +1174,7 @@ function RequestsList() {
               {!loading && rows.length === 0 && (
                 <tr>
                   <td colSpan={13} className="px-4 py-10 text-center text-muted-foreground">
-                    لا توجد طلبات.
+                    لا توجد طلبات مطابقة. جرّب إعادة تعيين الفلاتر أو العودة لدفعة اليوم.
                   </td>
                 </tr>
               )}
@@ -1162,7 +1182,7 @@ function RequestsList() {
           </table>
         </AdminDesktopTable>
 
-        <AdminMobileList loading={loading} empty={!loading && rows.length === 0} emptyMessage="لا توجد طلبات.">
+        <AdminMobileList loading={loading} empty={!loading && rows.length === 0} emptyMessage="لا توجد طلبات مطابقة. جرّب إعادة تعيين الفلاتر.">
           {rows.map((s) => {
             const urg = displayUrgency(s);
             const tierKey = (s.urgency_tier ?? "medium") as UrgencyTier;
@@ -1301,6 +1321,18 @@ function RequestsList() {
         onClose={() => setBulkRejectOpen(false)}
         onConfirm={async ({ reason }) => {
           await handleBulkReject(reason);
+        }}
+      />
+
+      <AdminActionModal
+        open={bulkStatusConfirmOpen}
+        title="تأكيد تغيير الحالة"
+        description={`سيتم تطبيق الحالة «${BULK_STATUS_OPTIONS.find((o) => o.value === bulkStatus)?.label ?? bulkStatus}» على ${selectedCount.toLocaleString("ar-EG")} طلباً.`}
+        confirmLabel="تطبيق"
+        busy={bulkBusy}
+        onClose={() => setBulkStatusConfirmOpen(false)}
+        onConfirm={() => {
+          confirmBulkStatus();
         }}
       />
     </div>
