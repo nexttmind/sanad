@@ -69,7 +69,7 @@ test.describe("session fixes regression", () => {
       await page.getByPlaceholder("كلمة المرور (8+ أحرف)").fill("secret1234");
       await page.getByRole("button", { name: "إنشاء" }).click();
 
-      await expect(page.getByText("مستخدم جديد")).toBeHidden();
+      await expect(page.getByPlaceholder("الاسم الكامل")).toBeHidden();
       await expect(page.getByRole("button", { name: "+ مستخدم جديد" })).toBeVisible();
     });
   });
