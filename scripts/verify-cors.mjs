@@ -34,6 +34,7 @@ const functions = [
   "precheck-aid-submission",
   "submit-aid-request",
   "track-request-proxy",
+  "admin-user-management",
 ];
 
 let ok = 0;
@@ -79,6 +80,7 @@ CORS still blocked. Fix (pick one):
    npm run functions:deploy:submit-aid-request
    npm run functions:deploy:submission-status
    npm run functions:deploy:track-request-proxy
+   npm run functions:deploy:admin-users
 `);
   process.exit(1);
 }

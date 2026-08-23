@@ -63,7 +63,9 @@ function handleCorsPreflight(
   if (req.method !== "OPTIONS") return null;
   const headers = corsHeadersForRequest(req, allowHeaders);
   if (!headers) return new Response("Forbidden", { status: 403 });
-  return new Response("ok", { headers });
+  return new Response("ok", {
+    headers: { ...headers, "Access-Control-Allow-Methods": "POST, OPTIONS" },
+  });
 }
 
 function jsonWithCors(
