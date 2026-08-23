@@ -43,8 +43,11 @@ async function invokeManage(body: Record<string, unknown>): Promise<{ ok: true }
   const { data, error } = await supabase.functions.invoke<ManageResponse>("admin-user-management", { body });
   const { body: payload, transportFailed } = await readFunctionInvokeBody(data, error);
   if (transportFailed) {
-    if (import.meta.env.DEV) console.error("[AdminUsers]", error);
-    return { ok: false, message: "تعذّر تنفيذ العملية." };
+    if (import.meta.env.DEV) console.error("[AdminUsers] invoke failed:", error);
+    return {
+      ok: false,
+      message: "تعذّر تنفيذ العملية.",
+    };
   }
   if (!payload?.ok) {
     return { ok: false, message: payload?.message ?? "تعذّر تنفيذ العملية." };

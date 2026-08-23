@@ -25,7 +25,7 @@
     "functions:deploy": "supabase functions deploy submission-status --project-ref lpdjtzwfxsjjudhxinmk && supabase functions deploy precheck-aid-submission --project-ref lpdjtzwfxsjjudhxinmk && supabase functions deploy admin-user-management --project-ref lpdjtzwfxsjjudhxinmk && supabase functions deploy export-job-url --project-ref lpdjtzwfxsjjudhxinmk && supabase functions deploy queue-integrity-check --project-ref lpdjtzwfxsjjudhxinmk && supabase functions deploy track-request-proxy --project-ref lpdjtzwfxsjjudhxinmk && supabase functions deploy submit-donation --project-ref lpdjtzwfxsjjudhxinmk && supabase functions deploy submit-aid-request --project-ref lpdjtzwfxsjjudhxinmk && supabase functions deploy upload-id-doc --project-ref lpdjtzwfxsjjudhxinmk",
     "functions:deploy:submission-status": "supabase functions deploy submission-status --project-ref lpdjtzwfxsjjudhxinmk",
     "functions:deploy:precheck-aid-submission": "supabase functions deploy precheck-aid-submission --project-ref lpdjtzwfxsjjudhxinmk",
-    "functions:deploy:admin-users": "supabase functions deploy admin-user-management --project-ref lpdjtzwfxsjjudhxinmk",
+    "functions:deploy:admin-users": "npx supabase functions deploy admin-user-management --project-ref lpdjtzwfxsjjudhxinmk",
     "functions:deploy:export-job-url": "supabase functions deploy export-job-url --project-ref lpdjtzwfxsjjudhxinmk",
     "functions:deploy:queue-integrity-check": "supabase functions deploy queue-integrity-check --project-ref lpdjtzwfxsjjudhxinmk",
     "functions:deploy:track-request-proxy": "supabase functions deploy track-request-proxy --project-ref lpdjtzwfxsjjudhxinmk",

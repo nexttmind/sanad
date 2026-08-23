@@ -25,4 +25,14 @@ describe("readFunctionInvokeBody", () => {
     const result = await readFunctionInvokeBody(null, new Error("network down"));
     expect(result).toEqual({ body: null, transportFailed: true });
   });
+
+  it("parses plain-text FunctionsHttpError bodies", async () => {
+    const result = await readFunctionInvokeBody(null, {
+      context: {
+        text: vi.fn().mockResolvedValue("Forbidden"),
+        status: 403,
+      },
+    });
+    expect(result).toEqual({ body: { ok: false, message: "Forbidden" }, transportFailed: false });
+  });
 });
