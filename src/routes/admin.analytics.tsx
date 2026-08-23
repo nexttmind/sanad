@@ -151,7 +151,8 @@ function Analytics() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-xl border border-border bg-card p-5">
-          <div className="font-display text-base">المناطق الأكثر طلباً</div>
+          <div className="font-display text-base">المناطق الحالية الأكثر طلباً</div>
+          <p className="mt-1 text-xs text-muted-foreground">حسب موقع الإقامة الحالي (موقع النزوح)، وليس مكان السكن قبل النزوح.</p>
           <ul className="mt-4 space-y-3 text-sm">
             {regions.length === 0 && <li className="text-xs text-muted-foreground">لا توجد بيانات.</li>}
             {regions.map(([l, v]) => (

@@ -119,26 +119,23 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
 
-    if (!supabaseUrl || !serviceKey || !anonKey) {
+    if (!supabaseUrl || !serviceKey) {
       return jsonWithCors(req,{ ok: false, message: "إعدادات الخادم غير مكتملة." }, 500);
     }
 
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
+    if (!authHeader?.startsWith("Bearer ")) {
       return jsonWithCors(req,{ ok: false, message: "غير مصرّح." }, 401);
     }
 
-    const callerClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: callerData, error: callerError } = await callerClient.auth.getUser();
+    const token = authHeader.slice("Bearer ".length);
+    const admin = createClient(supabaseUrl, serviceKey);
+    const { data: callerData, error: callerError } = await admin.auth.getUser(token);
     if (callerError || !callerData.user) {
       return jsonWithCors(req,{ ok: false, message: "غير مصرّح." }, 401);
     }
 
-    const admin = createClient(supabaseUrl, serviceKey);
     const { data: isAdmin } = await admin.rpc("has_role", {
       _user_id: callerData.user.id,
       _role: "admin",

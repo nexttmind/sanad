@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AdminActionModal } from "@/components/admin/AdminActionModal";
 import {
@@ -51,6 +51,12 @@ import {
   type UrgencyTier,
 } from "@/lib/scoring";
 import type { SavedView } from "@/lib/saved-views";
+import {
+  buildRequestsListUiState,
+  buildRequestsListUrlSearch,
+  loadRequestsListUiState,
+  saveRequestsListUiState,
+} from "@/lib/requests-list-ui-state";
 import {
   AdminDesktopTable,
   AdminMobileCard,
@@ -149,6 +155,10 @@ function RequestsList() {
   const queryClient = useQueryClient();
   const search = Route.useSearch();
   const { displayName, roles, user } = useAuth();
+  const savedUi = useMemo(() => loadRequestsListUiState(loadSavedPageSize()), []);
+  const scrollRestoredRef = useRef(false);
+  const pagesRestoredRef = useRef(false);
+  const batchDateInitializedRef = useRef(false);
   const sort = useMemo(
     () => parseSortFromSearch(new URLSearchParams(search as Record<string, string>)),
     [search],
@@ -157,32 +167,38 @@ function RequestsList() {
   const [showExport, setShowExport] = useState(false);
   const [exportColumns, setExportColumns] = useState<ExportColumnKey[]>(() => loadSavedExportColumns());
 
-  const [q, setQ] = useState("");
-  const [debouncedQ, setDebouncedQ] = useState("");
-  const [status, setStatus] = useState<DbStatus | "all">("all");
-  const [risk, setRisk] = useState<"all" | "high" | "medium" | "low" | "critical" | "fraud">("all");
-  const [tier, setTier] = useState<"all" | UrgencyTier>("all");
-  const [governorate, setGovernorate] = useState<string>("all");
-  const [tagIds, setTagIds] = useState<string[]>([]);
-  const [createdFrom, setCreatedFrom] = useState("");
-  const [createdTo, setCreatedTo] = useState("");
+  const [q, setQ] = useState(() => savedUi?.q ?? "");
+  const [debouncedQ, setDebouncedQ] = useState(() => savedUi?.q ?? "");
+  const [status, setStatus] = useState<DbStatus | "all">(() => (savedUi?.status as DbStatus | "all") ?? "all");
+  const [risk, setRisk] = useState<"all" | "high" | "medium" | "low" | "critical" | "fraud">(
+    () => (savedUi?.risk as "all" | "high" | "medium" | "low" | "critical" | "fraud") ?? "all",
+  );
+  const [tier, setTier] = useState<"all" | UrgencyTier>(() => (savedUi?.tier as UrgencyTier | "all") ?? "all");
+  const [governorate, setGovernorate] = useState<string>(() => savedUi?.governorate ?? "all");
+  const [tagIds, setTagIds] = useState<string[]>(() => savedUi?.tagIds ?? []);
+  const [createdFrom, setCreatedFrom] = useState(() => savedUi?.createdFrom ?? "");
+  const [createdTo, setCreatedTo] = useState(() => savedUi?.createdTo ?? "");
   const { data: allTags = [] } = useAdminFilterTags();
   const { data: staff = [] } = useAdminStaff();
-  const [pageSize, setPageSize] = useState<PageSize>(() => loadSavedPageSize());
-  const [dailyBatchEnabled, setDailyBatchEnabled] = useState(true);
-  const [batchDate, setBatchDate] = useState(() => beirutTodayIso());
-  const [batchNumber, setBatchNumber] = useState(1);
+  const [pageSize, setPageSize] = useState<PageSize>(() => savedUi?.pageSize ?? loadSavedPageSize());
+  const [dailyBatchEnabled, setDailyBatchEnabled] = useState(() => savedUi?.dailyBatchEnabled ?? true);
+  const [batchDate, setBatchDate] = useState(() => savedUi?.batchDate ?? beirutTodayIso());
+  const [batchNumber, setBatchNumber] = useState(() => savedUi?.batchNumber ?? 1);
 
-  const [assignFilter, setAssignFilter] = useState<"all" | "unassigned" | string>("all");
-  const [trustMin, setTrustMin] = useState("");
-  const [trustMax, setTrustMax] = useState("");
-  const [urgencyMin, setUrgencyMin] = useState("");
-  const [urgencyMax, setUrgencyMax] = useState("");
-  const [queueFrom, setQueueFrom] = useState("");
-  const [queueTo, setQueueTo] = useState("");
-  const [hasFlags, setHasFlags] = useState(false);
-  const [needs, setNeeds] = useState<string[]>([]);
-  const [referenceResult, setReferenceResult] = useState<ReferenceResultFilter | "all">("all");
+  const [assignFilter, setAssignFilter] = useState<"all" | "unassigned" | string>(
+    () => savedUi?.assignFilter ?? "all",
+  );
+  const [trustMin, setTrustMin] = useState(() => savedUi?.trustMin ?? "");
+  const [trustMax, setTrustMax] = useState(() => savedUi?.trustMax ?? "");
+  const [urgencyMin, setUrgencyMin] = useState(() => savedUi?.urgencyMin ?? "");
+  const [urgencyMax, setUrgencyMax] = useState(() => savedUi?.urgencyMax ?? "");
+  const [queueFrom, setQueueFrom] = useState(() => savedUi?.queueFrom ?? "");
+  const [queueTo, setQueueTo] = useState(() => savedUi?.queueTo ?? "");
+  const [hasFlags, setHasFlags] = useState(() => savedUi?.hasFlags ?? false);
+  const [needs, setNeeds] = useState<string[]>(() => savedUi?.needs ?? []);
+  const [referenceResult, setReferenceResult] = useState<ReferenceResultFilter | "all">(
+    () => savedUi?.referenceResult ?? "all",
+  );
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [bulkReviewerId, setBulkReviewerId] = useState("");
@@ -191,7 +207,7 @@ function RequestsList() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkMessage, setBulkMessage] = useState<string | null>(null);
   const [bulkRejectOpen, setBulkRejectOpen] = useState(false);
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(() => savedUi?.showAdvancedFilters ?? false);
   const [bulkStatusConfirmOpen, setBulkStatusConfirmOpen] = useState(false);
 
   const filters: SubmissionFilters = useMemo(
@@ -282,12 +298,154 @@ function RequestsList() {
   const hasNextPage = dailyBatchEnabled ? false : listQuery.hasNextPage;
   const batchCount = totalBatches(totalCount);
 
+  const buildSnapshot = useCallback(
+    (overrides?: { scrollY?: number; loadedPages?: number }) =>
+      buildRequestsListUiState({
+        q,
+        status,
+        risk,
+        tier,
+        governorate,
+        tagIds,
+        createdFrom,
+        createdTo,
+        pageSize,
+        dailyBatchEnabled,
+        batchDate,
+        batchNumber,
+        assignFilter,
+        trustMin,
+        trustMax,
+        urgencyMin,
+        urgencyMax,
+        queueFrom,
+        queueTo,
+        hasFlags,
+        needs,
+        referenceResult,
+        showAdvancedFilters,
+        urlSearch: buildRequestsListUrlSearch({
+          sort: sort.field,
+          dir: sort.direction,
+          q: q.trim() || undefined,
+          status: status === "all" ? undefined : status,
+          tier: tier === "all" ? undefined : tier,
+          risk: risk === "all" ? undefined : risk,
+          urgency_min: urgencyMin || undefined,
+          flags: hasFlags ? "1" : undefined,
+        }),
+        scrollY: overrides?.scrollY ?? (typeof window !== "undefined" ? window.scrollY : 0),
+        loadedPages:
+          overrides?.loadedPages ??
+          (dailyBatchEnabled ? 1 : (listQuery.data?.pages.length ?? 1)),
+      }),
+    [
+      q,
+      status,
+      risk,
+      tier,
+      governorate,
+      tagIds,
+      createdFrom,
+      createdTo,
+      pageSize,
+      dailyBatchEnabled,
+      batchDate,
+      batchNumber,
+      assignFilter,
+      trustMin,
+      trustMax,
+      urgencyMin,
+      urgencyMax,
+      queueFrom,
+      queueTo,
+      hasFlags,
+      needs,
+      referenceResult,
+      showAdvancedFilters,
+      sort.field,
+      sort.direction,
+      listQuery.data?.pages.length,
+    ],
+  );
+
+  const persistBeforeDetail = useCallback(() => {
+    saveRequestsListUiState(
+      buildSnapshot({
+        scrollY: window.scrollY,
+        loadedPages: dailyBatchEnabled ? 1 : (listQuery.data?.pages.length ?? 1),
+      }),
+    );
+  }, [buildSnapshot, dailyBatchEnabled, listQuery.data?.pages.length]);
+
+  useEffect(() => {
+    if (!savedUi?.urlSearch.sort || search.sort) return;
+    void navigate({
+      to: "/admin/requests",
+      search: { ...search, ...savedUi.urlSearch },
+      replace: true,
+    });
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      saveRequestsListUiState(buildSnapshot());
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [buildSnapshot]);
+
+  useEffect(() => {
+    return () => {
+      saveRequestsListUiState(buildSnapshot({ scrollY: window.scrollY }));
+    };
+  }, [buildSnapshot]);
+
+  useEffect(() => {
+    if (dailyBatchEnabled) {
+      pagesRestoredRef.current = true;
+      return;
+    }
+    const targetPages = savedUi?.loadedPages ?? 1;
+    const currentPages = listQuery.data?.pages.length ?? 0;
+    if (listQuery.isLoading || listQuery.isFetchingNextPage) return;
+    if (currentPages >= targetPages || !listQuery.hasNextPage) {
+      pagesRestoredRef.current = true;
+      return;
+    }
+    void listQuery.fetchNextPage();
+  }, [
+    dailyBatchEnabled,
+    listQuery.data?.pages.length,
+    listQuery.hasNextPage,
+    listQuery.isFetchingNextPage,
+    listQuery.isLoading,
+    savedUi?.loadedPages,
+  ]);
+
+  useEffect(() => {
+    if (scrollRestoredRef.current || loading) return;
+    if (!pagesRestoredRef.current) return;
+    const y = savedUi?.scrollY ?? 0;
+    if (y <= 0) {
+      scrollRestoredRef.current = true;
+      return;
+    }
+    requestAnimationFrame(() => {
+      window.scrollTo(0, y);
+      scrollRestoredRef.current = true;
+    });
+  }, [loading, rows.length, savedUi?.scrollY]);
+
   useAdminQueryRealtime("admin-requests", "aid_requests", [
     [...adminQueryKeys.all, "submissions"],
     [...adminQueryKeys.all, "daily-batch"],
   ]);
 
   useEffect(() => {
+    if (!batchDateInitializedRef.current) {
+      batchDateInitializedRef.current = true;
+      return;
+    }
     setBatchNumber(1);
   }, [batchDate]);
 
@@ -442,7 +600,7 @@ function RequestsList() {
       sort.field === field && sort.direction === "desc" ? "asc" : field === "queue_number" ? "asc" : "desc";
     void navigate({
       to: "/admin/requests",
-      search: { sort: field, dir: direction },
+      search: (prev) => ({ ...prev, sort: field, dir: direction }),
     });
   };
 
@@ -477,7 +635,7 @@ function RequestsList() {
     setExportColumns(cols);
     void navigate({
       to: "/admin/requests",
-      search: { sort: view.sort.field, dir: view.sort.direction },
+      search: (prev) => ({ ...prev, sort: view.sort.field, dir: view.sort.direction }),
     });
   };
 
@@ -1162,7 +1320,8 @@ function RequestsList() {
                     <td className="px-4 py-3 text-left">
                       <Link 
                         to="/admin/requests/$id" 
-                        params={{ id: s.id }} 
+                        params={{ id: s.id }}
+                        onClick={persistBeforeDetail}
                         className="inline-flex items-center justify-center rounded-md bg-clay/10 px-3 py-1.5 text-xs font-medium text-clay transition-colors hover:bg-clay/20 active:bg-clay/30"
                       >
                         عرض
@@ -1239,7 +1398,7 @@ function RequestsList() {
                   ]}
                 />
                 <AdminMobileCardActions>
-                  <AdminMobileCardLink to="/admin/requests/$id" params={{ id: s.id }}>
+                  <AdminMobileCardLink to="/admin/requests/$id" params={{ id: s.id }} onClick={persistBeforeDetail}>
                     عرض التفاصيل ←
                   </AdminMobileCardLink>
                 </AdminMobileCardActions>

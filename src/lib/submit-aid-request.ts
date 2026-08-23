@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { readFunctionInvokeBody } from "@/lib/parse-function-invoke";
 
 export type AidRequestSubmitPayload = {
   full_name: string;
@@ -98,24 +99,29 @@ export async function submitAidRequest(
     };
   }
 
-  if (error) {
+  const { body, transportFailed } = await readFunctionInvokeBody(data, error);
+  if (transportFailed) {
     if (import.meta.env.DEV) console.error("[SubmitAidRequest] proxy invoke failed:", error);
     return { ok: false, message: "تعذّر إرسال الطلب." };
   }
 
-  if (data?.errors && Object.keys(data.errors).length > 0) {
-    const first = Object.values(data.errors)[0];
-    return { ok: false, message: first ?? "يرجى التحقق من الحقول.", errors: data.errors };
-  }
-
-  if (!data?.ok || !data.id || !data.reference_code) {
+  if (body?.errors && Object.keys(body.errors).length > 0) {
+    const first = Object.values(body.errors)[0];
     return {
       ok: false,
-      message: data?.message ?? "تعذّر إرسال الطلب.",
-      reason: data?.reason,
-      reference_code: data?.reference_code,
+      message: body.message ?? first ?? "يرجى التحقق من الحقول.",
+      errors: body.errors,
     };
   }
 
-  return { ok: true, id: data.id, reference_code: data.reference_code };
+  if (!body?.ok || !body.id || !body.reference_code) {
+    return {
+      ok: false,
+      message: body?.message ?? "تعذّر إرسال الطلب.",
+      reason: body?.reason,
+      reference_code: body?.reference_code,
+    };
+  }
+
+  return { ok: true, id: body.id, reference_code: body.reference_code };
 }

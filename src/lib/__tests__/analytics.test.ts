@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  analyticsRegionKey,
   distributionProgress,
   needsBreakdown,
   parseDateRange,
@@ -15,8 +16,9 @@ const sampleRows: AnalyticsRequestRow[] = [
   {
     created_at: "2026-06-01T10:00:00.000Z",
     needs: ["طعام", "دواء"],
-    governorate: "النبطية",
-    origin_town: null,
+    town: "النبطية",
+    current_address: "صيدا",
+    origin_town: "حاروف",
     trust_score: 85,
     urgency_score: 70,
     status: "approved",
@@ -28,8 +30,9 @@ const sampleRows: AnalyticsRequestRow[] = [
   {
     created_at: "2026-06-02T14:00:00.000Z",
     needs: ["طعام"],
-    governorate: "صور",
-    origin_town: null,
+    town: "صور",
+    current_address: "بيروت — المدينة الرياضية",
+    origin_town: "العباسية",
     trust_score: 45,
     urgency_score: 55,
     status: "distributed",
@@ -41,7 +44,8 @@ const sampleRows: AnalyticsRequestRow[] = [
   {
     created_at: "2026-06-03T09:00:00.000Z",
     needs: ["ملابس"],
-    governorate: "",
+    town: "بنت جبيل",
+    current_address: null,
     origin_town: "بنت جبيل",
     trust_score: 25,
     urgency_score: 90,
@@ -68,10 +72,17 @@ describe("analytics pure functions", () => {
     expect(breakdown.find(([k]) => k === "دواء")).toEqual(["دواء", 1]);
   });
 
-  it("regionalBreakdown groups by governorate or town", () => {
+  it("analyticsRegionKey prefers current_address over pre-displacement origin", () => {
+    expect(analyticsRegionKey(sampleRows[0])).toBe("صيدا");
+    expect(analyticsRegionKey(sampleRows[1])).toBe("بيروت — المدينة الرياضية");
+    expect(analyticsRegionKey(sampleRows[2])).toBe("غير محدد");
+  });
+
+  it("regionalBreakdown groups by current location, not origin town", () => {
     const regions = regionalBreakdown(sampleRows);
-    expect(regions.some(([k]) => k === "النبطية")).toBe(true);
-    expect(regions.some(([k]) => k === "بنت جبيل")).toBe(true);
+    expect(regions.some(([k]) => k === "صيدا")).toBe(true);
+    expect(regions.some(([k]) => k === "بيروت — المدينة الرياضية")).toBe(true);
+    expect(regions.some(([k]) => k === "بنت جبيل")).toBe(false);
   });
 
   it("vulnerabilityCounts tallies flags", () => {

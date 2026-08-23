@@ -5,7 +5,8 @@ export type AnalyticsRequestRow = Pick<
   Database["public"]["Tables"]["aid_requests"]["Row"],
   | "created_at"
   | "needs"
-  | "governorate"
+  | "town"
+  | "current_address"
   | "origin_town"
   | "trust_score"
   | "urgency_score"
@@ -70,7 +71,7 @@ export async function fetchAnalyticsData(range: DateRange): Promise<AnalyticsSna
     supabase
       .from("aid_requests")
       .select(
-        "created_at, needs, governorate, origin_town, trust_score, urgency_score, status, disabled, infants, chronic_illness, elderly",
+        "created_at, needs, town, current_address, origin_town, trust_score, urgency_score, status, disabled, infants, chronic_illness, elderly",
       )
       .gte("created_at", fromIso)
       .lte("created_at", toIso)
@@ -184,10 +185,22 @@ export function needsBreakdown(rows: AnalyticsRequestRow[]): [string, number][] 
   return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
 }
 
+/** Group analytics by current residence (after displacement), not pre-displacement origin. */
+export function analyticsRegionKey(row: AnalyticsRequestRow): string {
+  const current = row.current_address?.trim();
+  if (current) return current;
+
+  const town = row.town?.trim();
+  const origin = row.origin_town?.trim();
+  if (town && town !== origin) return town;
+
+  return "غير محدد";
+}
+
 export function regionalBreakdown(rows: AnalyticsRequestRow[]): [string, number][] {
   const map = new Map<string, number>();
   for (const r of rows) {
-    const key = r.governorate?.trim() || r.origin_town?.trim() || "غير محدد";
+    const key = analyticsRegionKey(r);
     map.set(key, (map.get(key) ?? 0) + 1);
   }
   return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);

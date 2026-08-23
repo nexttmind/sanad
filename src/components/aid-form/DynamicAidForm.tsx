@@ -146,6 +146,7 @@ export function DynamicAidForm({ schema, startedAt, onSuccess }: DynamicAidFormP
   const [submitBlocked, setSubmitBlocked] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const submitErrorRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
@@ -153,6 +154,12 @@ export function DynamicAidForm({ schema, startedAt, onSuccess }: DynamicAidFormP
     setTouched({});
     setAttempted(false);
   }, [schema]);
+
+  useEffect(() => {
+    if (submitError) {
+      submitErrorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [submitError]);
 
   const touch = (k: string) => () => setTouched((p) => ({ ...p, [k]: true }));
   const show = (k: string) => attempted || touched[k];
@@ -464,7 +471,10 @@ export function DynamicAidForm({ schema, startedAt, onSuccess }: DynamicAidFormP
       )}
 
       {submitError && (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div
+          ref={submitErrorRef}
+          className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
           {submitError}
         </div>
       )}

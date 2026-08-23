@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { roleLabel, type AppRole } from "@/lib/auth";
+import { readFunctionInvokeBody } from "@/lib/parse-function-invoke";
 
 export type AdminUserRow = {
   user_id: string;
@@ -40,21 +41,13 @@ type ManageResponse = { ok: boolean; message?: string; user_id?: string };
 
 async function invokeManage(body: Record<string, unknown>): Promise<{ ok: true } | { ok: false; message: string }> {
   const { data, error } = await supabase.functions.invoke<ManageResponse>("admin-user-management", { body });
-  if (error) {
+  const { body: payload, transportFailed } = await readFunctionInvokeBody(data, error);
+  if (transportFailed) {
     if (import.meta.env.DEV) console.error("[AdminUsers]", error);
-    const ctx = (error as { context?: { json?: () => Promise<ManageResponse> } }).context;
-    if (ctx?.json) {
-      try {
-        const payload = await ctx.json();
-        if (payload?.message) return { ok: false, message: payload.message };
-      } catch {
-        /* ignore parse errors */
-      }
-    }
     return { ok: false, message: "تعذّر تنفيذ العملية." };
   }
-  if (!data?.ok) {
-    return { ok: false, message: data?.message ?? "تعذّر تنفيذ العملية." };
+  if (!payload?.ok) {
+    return { ok: false, message: payload?.message ?? "تعذّر تنفيذ العملية." };
   }
   return { ok: true };
 }

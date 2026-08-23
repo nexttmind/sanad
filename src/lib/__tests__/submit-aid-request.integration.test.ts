@@ -1,5 +1,6 @@
 import { resetSupabaseMock, supabase } from "@/integrations/supabase/__mocks__/client";
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 
 vi.mock("@/integrations/supabase/client");
 
@@ -92,6 +93,52 @@ describe("submit-aid-request supabase flows", () => {
       reason: "phone_already_submitted",
       message: "سبق أن قدّمت طلباً من هذا الرقم. يُسمح بطلب واحد فقط لكل رقم هاتف.",
       reference_code: "****-1234",
+    });
+  });
+
+  it("submitAidRequest parses FunctionsHttpError body for duplicate phone (409)", async () => {
+    const responseBody = {
+      ok: false,
+      reason: "phone_already_submitted",
+      message: "سبق أن قدّمت طلباً من هذا الرقم. يُسمح بطلب واحد فقط لكل رقم هاتف.",
+      reference_code: "****-1234",
+    };
+    supabase.functions.invoke.mockResolvedValue({
+      data: null,
+      error: new FunctionsHttpError({
+        json: vi.fn().mockResolvedValue(responseBody),
+      }),
+    });
+
+    const result = await submitAidRequest(basePayload);
+
+    expect(result).toEqual({
+      ok: false,
+      reason: "phone_already_submitted",
+      message: responseBody.message,
+      reference_code: "****-1234",
+    });
+  });
+
+  it("submitAidRequest parses FunctionsHttpError body for reference save failure (500)", async () => {
+    const responseBody = {
+      ok: false,
+      message: "تعذّر حفظ بيانات المرجع — يرجى المحاولة مرة أخرى.",
+      errors: { reference: "تعذّر حفظ بيانات المرجع" },
+    };
+    supabase.functions.invoke.mockResolvedValue({
+      data: null,
+      error: new FunctionsHttpError({
+        json: vi.fn().mockResolvedValue(responseBody),
+      }),
+    });
+
+    const result = await submitAidRequest(basePayload);
+
+    expect(result).toEqual({
+      ok: false,
+      message: responseBody.message,
+      errors: responseBody.errors,
     });
   });
 });

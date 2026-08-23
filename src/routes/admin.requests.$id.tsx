@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { loadRequestsListUiState } from "@/lib/requests-list-ui-state";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminMultiRealtime } from "@/lib/use-admin-realtime";
 import type { Database } from "@/integrations/supabase/types";
@@ -255,10 +256,18 @@ function Detail() {
   if (loading) return <div className="p-8 text-sm text-muted-foreground">جارٍ التحميل...</div>;
   if (!s) return <div className="p-8 text-sm text-muted-foreground">لم يتم العثور على هذا الطلب.</div>;
 
+  const listSearch = loadRequestsListUiState()?.urlSearch;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link to="/admin/requests" className="text-xs text-muted-foreground hover:text-foreground">→ العودة إلى القائمة</Link>
+        <Link
+          to="/admin/requests"
+          search={listSearch}
+          className="text-xs text-muted-foreground hover:text-foreground"
+        >
+          → العودة إلى القائمة
+        </Link>
         <div className="flex flex-wrap gap-2">
           <button
             disabled={saving}

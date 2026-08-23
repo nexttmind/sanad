@@ -1,5 +1,6 @@
 import { resetSupabaseMock, supabase } from "@/integrations/supabase/__mocks__/client";
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 
 vi.mock("@/integrations/supabase/client");
 
@@ -67,5 +68,23 @@ describe("admin-users supabase flows", () => {
     });
 
     expect(result).toEqual({ ok: false, message: "Email taken" });
+  });
+
+  it("createAdminUser parses FunctionsHttpError body on duplicate email", async () => {
+    supabase.functions.invoke.mockResolvedValue({
+      data: null,
+      error: new FunctionsHttpError({
+        json: vi.fn().mockResolvedValue({ ok: false, message: "هذا البريد مسجّل مسبقاً." }),
+      }),
+    });
+
+    const result = await createAdminUser({
+      email: "taken@sanad.lb",
+      password: "secret123",
+      full_name: "Taken",
+      role: "viewer",
+    });
+
+    expect(result).toEqual({ ok: false, message: "هذا البريد مسجّل مسبقاً." });
   });
 });
